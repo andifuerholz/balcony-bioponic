@@ -1,9 +1,18 @@
 ## Table of Contents
-- [Hardware](#hardware)
+- [Table of Contents](#table-of-contents)
+- [Project description](#project-description)
+- #hardware
 - [Software](#software)
-  - [Einleitung](#einleitung)
   - [Core Watering Logic](#core-watering-logic)
+  - #framework-description
   - [Files](#files)
+  - [Arduino Cloud Setup](#arduino-cloud-setup)
+    - #cloud-variables
+    - [Dashboard](#dashboard)
+- [Implementation Strategy](#implementation-strategy)
+  - [Preliminary Remarks](#preliminary-remarks)
+  - #automation-implementation
+  - [Learning Goals](#learning-goals)
 
 ## Project description
 
