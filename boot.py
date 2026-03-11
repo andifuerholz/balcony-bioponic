@@ -26,3 +26,7 @@ def wifi_connect():
 
 # Run WiFi connection immediately at boot
 wifi_connect()
+
+# Sync UTC Time
+from time_zh import sync_ntp
+sync_ntp()
