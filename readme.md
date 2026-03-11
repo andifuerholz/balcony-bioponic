@@ -21,6 +21,7 @@ The bioponics system is built from a compact set of components suitable for balc
 - **An auxiliary tank with its own pump** to refill or stabilize the main reservoir when required.
 
 ## Software
+### Framework description
 
 The software running on the Arduino Nano ESP32 is based on MicroPython.  
 The system uses several components and external services:
@@ -45,7 +46,7 @@ The software controls the essential components of the system:
 - Controlling the auxiliary tank pump  
 - Controlling the two water valves
 
-### Einleitung
+### Introduction
 #### Core Watering Logic
 
 The software controls the watering cycles within a defined daily time window (e.g., from 09:00 to 21:00).  
@@ -67,5 +68,15 @@ This logic allows the system to adapt its watering frequency to the current temp
 
 This file stores all credentials required for Wi‑Fi access and for authentication with the Arduino IoT Cloud.  
 It is not part of the public repository and must be created locally by the user.
+
+
+### Arduino Cloud Setup
+## Cloud Variables
+- time_zh: stored local time
+- dayHourActive: Start hour with watering (e.g. 07:00)
+- dayHourInactive:End hour stop watering (e.g. 21:00)
+- AirTemp: Air temperature
+- AirTempAvg: Air temperatur 10 min. Average
+- ...
 
 
