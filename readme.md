@@ -99,6 +99,6 @@ Core parts of the system were used for two years — with a simple timer — bef
 ### Learning Goals
 1. Understanding how to set up and run the basic hardware and software components  
 2. Learning how to design an appropriate control structure (e.g., a state machine) for reading sensors and controlling actuators  
-3. ...
+3. Understanding how to integrate real‑world constraints (timing, temperature thresholds, water levels
 
 
