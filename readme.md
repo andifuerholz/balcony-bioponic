@@ -1,3 +1,11 @@
+## Table of Contents
+- [Hardware](#hardware)
+- [Software](#software)
+  - [Einleitung](#einleitung)
+  - [Core Watering Logic](#core-watering-logic)
+  - [Files](#files)
+    - #secretspy
+
 ## Hardware
 
 The bioponics system is built from a compact set of components suitable for balcony-scale food production. The hardware includes:
