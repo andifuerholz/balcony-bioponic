@@ -4,7 +4,6 @@
   - [Einleitung](#einleitung)
   - [Core Watering Logic](#core-watering-logic)
   - [Files](#files)
-    - #secrets.py
 
 ## Hardware
 
