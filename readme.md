@@ -38,7 +38,8 @@ The software controls the essential components of the system:
 - Controlling the auxiliary tank pump  
 - Controlling the two water valves
 
-### Core Watering Logic
+### Einleitung
+#### Core Watering Logic
 
 The software controls the watering cycles within a defined daily time window (e.g., from 09:00 to 21:00).  
 Within this active period, the pump of each watering circuit is triggered according to a schedule that specifies **at which minutes of the hour** the pump should run.
@@ -53,3 +54,11 @@ Example:
 If the outdoor temperature is **26 °C**, then at minutes **0, 20, and 40** of each hour, the pump of **circuit 1** is activated for **10 seconds**.
 
 This logic allows the system to adapt its watering frequency to the current temperature conditions.
+
+#### Files
+#### `secrets.py`
+
+This file stores all credentials required for Wi‑Fi access and for authentication with the Arduino IoT Cloud.  
+It is not part of the public repository and must be created locally by the user.
+
+
