@@ -79,7 +79,26 @@ It is not part of the public repository and must be created locally by the user.
 - AirTempAvg: Air temperatur 10 min. Average
 - ...
 
-### Dashboard
+#### Dashboard
 ...
+
+## Implementation Strategy
+
+### Preliminary Remarks
+Core parts of the system were used for two years — with a simple timer — before implementing this automation work. The main drivers were that high temperatures and strong sunlight caused some damage, especially to the lettuce.
+
+### Automation Implementation
+1. Getting the ESP32 running with MicroPython, Wi-Fi, and LED control  
+2. Continuously reading temperature sensors and deriving 10‑minute average values  
+3. Manual control of two water circuits for a defined duration  
+4. Adding automatic control based on defined time intervals  
+5. Measuring the water level in the main water tank  
+6. Controlling a pump from the auxiliary tank to refill the main tank  
+7. Automatic refilling from the auxiliary tank
+
+### Learning Goals
+1. Understanding how to set up and run the basic hardware and software components  
+2. Learning how to design an appropriate control structure (e.g., a state machine) for reading sensors and controlling actuators  
+3. ...
 
 
