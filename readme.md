@@ -60,11 +60,15 @@ The system uses several components, libraries and external services:
   https://forum.arduino.cc/t/how-to-connect-the-esp32-micropython-to-arduino-iot-cloud/1234953
 
 ### Files
-#### `secrets.py`
+(Files of Arduino IoT Cloud Python Library and its dependencies are not listed)
 
+#### `secrets.py`
 This file stores all credentials required for Wi‑Fi access and for authentication with the Arduino IoT Cloud.  
 It is not part of the public repository and must be created locally by the user.
-
+#### `boot.py`
+...
+#### `main.py`
+...
 
 ### Arduino Cloud Setup
 #### Cloud Variables
