@@ -12,3 +12,28 @@ The bioponics system is built from a compact set of components suitable for balc
 - **One water temperature sensor (DS18B20)** to monitor the nutrient solution temperature.
 - **A custom-built water level sensing system**, consisting of six reed switches positioned at different heights.
 - **An auxiliary tank with its own pump** to refill or stabilize the main reservoir when required.
+
+## Software
+
+The software running on the Arduino Nano ESP32 is based on MicroPython.  
+The system uses several components and external services:
+
+- **MicroPython firmware on the ESP32**, installed using the  
+  [Arduino MicroPython Installer](https://labs.arduino.cc/en/labs/micropython-installer)
+
+- **Arduino Cloud**, which provides a graphical user interface (GUI) for monitoring and interaction.
+
+- **Arduino IoT Cloud Python Library**, used to communicate with the Arduino Cloud:  
+  https://github.com/arduino/arduino-iot-cloud-py
+
+- A detailed setup guide and example for connecting the ESP32 with MicroPython to Arduino IoT Cloud is available here:  
+  *How to Connect the ESP32 MicroPython to Arduino IoT Cloud*  
+  https://forum.arduino.cc/t/how-to-connect-the-esp32-micropython-to-arduino-iot-cloud/1234953
+
+The software controls the essential components of the system:
+
+- Reading the two DS18B20 temperature sensors  
+- Reading the water‑level system with six reed switches  
+- Controlling the main water pump  
+- Controlling the auxiliary tank pump  
+- Controlling the two water valves
