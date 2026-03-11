@@ -11,6 +11,9 @@ from secrets import WIFI_PASSWORD
 from secrets import DEVICE_ID
 from secrets import CLOUD_PASSWORD
 
+# Time (Zurich)
+from time_zh import localtime_ch
+
 # Pin Setup
 led_pin = Pin(2, Pin.OUT)
 
@@ -38,5 +41,20 @@ if __name__ == "__main__":
         username=DEVICE_ID,
         password=CLOUD_PASSWORD
     )
+
+    # LED variable
     client.register('led_state', on_write=onLedChange)
+
+    # Time variable (write-only from ESP32 → Cloud)
+    client.register('time_zh')
+
+    # Set Zurich time once before starting client loop
+    t_local, _, _ = localtime_ch()
+    timestamp = "{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}".format(
+        t_local[0], t_local[1], t_local[2],
+        t_local[3], t_local[4], t_local[5]
+    )
+    client["time_zh"] = timestamp
+
+    # Start IoT Cloud loop
     client.start()
