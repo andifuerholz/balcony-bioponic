@@ -113,8 +113,7 @@ Core parts of the system were used for two years — with a simple timer — bef
 
 ## Appendix
 ### ESP32 Wiring
-
-https://github.com/andifuerholz/balcony-bioponic/blob/bc93deddbc6b00784411bc56c6c973a75ff1a4b9/img/Arduino%20Nano%20ESP32%20connection.jpg
+![Arduino Nano ESP32 wiring](https://github.com/andifuerholz/balcony-bioponic/blob/bc93deddbc6b00784411bc56c6c973a75ff1a4b9/img/Arduino%20Nano%20ESP32%20connection.jpg?raw=true)
 
 ### Connecting a DS18B20 Temperature Sensor to the Arduino Nano ESP32
 
