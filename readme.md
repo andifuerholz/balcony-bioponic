@@ -117,6 +117,14 @@ Core parts of the system were used for two years — with a simple timer — bef
 
 ### Connecting a DS18B20 Temperature Sensor to the Arduino Nano ESP32
 
+## Getting ROMs
+```python
+import onewire, ds18x20
+from machine import Pin
+ow = onewire.OneWire(Pin(4))     # dein Bus-Pin
+ds = ds18x20.DS18X20(ow)
+print("Gefundene ROMs:", ds.scan())
+
 The **DS18B20** is a digital temperature sensor that communicates via the **OneWire bus**. It requires only one data pin on the Arduino Nano ESP32 (ESP32‑S3).
 
 ### 🔌 Wiring Overview
