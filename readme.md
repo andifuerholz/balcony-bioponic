@@ -111,3 +111,49 @@ Core parts of the system were used for two years — with a simple timer — bef
 3. Understanding how to integrate real‑world constraints (timing, temperature thresholds, water levels
 
 
+## Appendix
+### ESP32 Wiring
+
+https://github.com/andifuerholz/balcony-bioponic/blob/bc93deddbc6b00784411bc56c6c973a75ff1a4b9/img/Arduino%20Nano%20ESP32%20connection.jpg
+
+### Connecting a DS18B20 Temperature Sensor to the Arduino Nano ESP32
+
+The **DS18B20** is a digital temperature sensor that communicates via the **OneWire bus**. It requires only one data pin on the Arduino Nano ESP32 (ESP32‑S3).
+
+### 🔌 Wiring Overview
+
+| DS18B20 Pin | Arduino Nano ESP32 Pin | Description |
+|-------------|-------------------------|-------------|
+| **VDD**     | **3V3**                 | Power supply |
+| **GND**     | **GND**                 | Ground |
+| **DQ**      | **GPIO 4 / A3 ~D20**              | OneWire data line |
+
+### 📐 Pull‑Up Resistor
+
+Add a **4.7 kΩ resistor between DQ and 3V3**.
+
+The DS18B20 requires this pull‑up for a stable HIGH level on the OneWire bus.  
+For very short wires (<10 cm, 1 sensor) it may work temporarily without it,  
+but stable operation requires the resistor.
+
+### 🧪 Minimal MicroPython Test Script
+
+```python
+from machine import Pin
+import onewire, ds18x20, time
+
+SENSOR_PIN = 4
+
+ow = onewire.OneWire(Pin(SENSOR_PIN))
+ds = ds18x20.DS18X20(ow)
+
+roms = ds.scan()
+print("Detected sensors:", roms)
+
+while True:
+    ds.convert_temp()
+    time.sleep_ms(750)
+    for r in roms:
+        print("Temperature:", ds.read_temp(r), "°C")
+    time.sleep(5)
+
