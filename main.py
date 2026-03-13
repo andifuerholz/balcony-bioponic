@@ -7,8 +7,8 @@ import _thread
 from arduino_iot_cloud import ArduinoCloudClient
 
 # Import Credentials
-from secrets import WIFI_SSID
-from secrets import WIFI_PASSWORD
+#from secrets import WIFI_SSID
+#from secrets import WIFI_PASSWORD
 from secrets import DEVICE_ID
 from secrets import CLOUD_PASSWORD
 
