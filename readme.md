@@ -164,6 +164,8 @@ while True:
         print("Temperature:", ds.read_temp(r), "°C")
     time.sleep(5)
 
+```
+
 ### Tank swimmer
 constructed with OpenSCAD:
 
