@@ -115,9 +115,9 @@ Core parts of the system were used for two years — with a simple timer — bef
 ### ESP32 Wiring
 ![Arduino Nano ESP32 wiring](https://github.com/andifuerholz/balcony-bioponic/blob/bc93deddbc6b00784411bc56c6c973a75ff1a4b9/img/Arduino%20Nano%20ESP32%20connection.jpg?raw=true)
 
-### Connecting a DS18B20 Temperature Sensor to the Arduino Nano ESP32
+#### Connecting a DS18B20 Temperature Sensor to the Arduino Nano ESP32
 
-## Getting ROMs
+#### Getting ROMs
 ```python
 import onewire, ds18x20
 from machine import Pin
@@ -127,7 +127,7 @@ print("Gefundene ROMs:", ds.scan())
 
 The **DS18B20** is a digital temperature sensor that communicates via the **OneWire bus**. It requires only one data pin on the Arduino Nano ESP32 (ESP32‑S3).
 
-### 🔌 Wiring Overview
+#### 🔌 Wiring Overview
 
 | DS18B20 Pin | Arduino Nano ESP32 Pin | Description |
 |-------------|-------------------------|-------------|
@@ -135,7 +135,7 @@ The **DS18B20** is a digital temperature sensor that communicates via the **OneW
 | **GND**     | **GND**                 | Ground |
 | **DQ**      | **GPIO 4 / A3 ~D20**              | OneWire data line |
 
-### 📐 Pull‑Up Resistor
+##### 📐 Pull‑Up Resistor
 
 Add a **4.7 kΩ resistor between DQ and 3V3**.
 
@@ -164,3 +164,20 @@ while True:
         print("Temperature:", ds.read_temp(r), "°C")
     time.sleep(5)
 
+### Tank swimmer
+constructed with OpenSCAD:
+
+/*
+Construction of a tank swimmer with OpenSCAD
+use of BOSL2-Library;
+https://github.com/BelfrySCAD/BOSL2;
+https://github.com/BelfrySCAD/BOSL2/wiki/CheatSheet
+*/
+include <BOSL2/std.scad>
+$fn=100;
+
+
+difference() {
+	cyl(l=14, d=35, rounding=2);
+	translate ([0,0,-1]) cyl(l=16, d=8);;
+}
