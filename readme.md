@@ -16,6 +16,8 @@
 
 ## Project description
 
+Project in development...hang on...
+
 ## Hardware
 
 The bioponics system is built from a set of components aiming for a balcony-scale food production. The hardware includes:
