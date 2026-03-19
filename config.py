@@ -12,8 +12,7 @@ SENSOR_MAP = {
 }
 
 # Optional per-sensor calibration offsets in °C
-OFFSETS = {
-    # 'air': 0.0,
+OFFSETS = {'air': 0.5,
     # 'water': -0.2,
     # 'biofilter': +0.1,
 }
