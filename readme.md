@@ -91,6 +91,7 @@ The system uses several components, libraries and external services:
 └─ secrets.py
 
 #### `boot.py`
+
 ```python
 # boot.py
 # Purpose: Connect to Wi‑Fi at boot and sync UTC time (for TLS).
@@ -160,6 +161,7 @@ except Exception as e:
 ```
 
 #### `secrets.py`
+
 ```python
 # secrets.py
 
@@ -174,6 +176,7 @@ CLOUD_PASSWORD = b[enter pw here]"  # b=Byte-String
 ```
 
 #### `config.py`
+
 ```python
 # config.py
 # Central configuration for pins, timing, and DS18B20 sensor mapping/calibration.
@@ -218,11 +221,390 @@ TEMP_MAX =  60.0
 ```
 
 
-
-
-
 #### `main.py`
 
+```python
+# main.py
+# Purpose: Initialize Arduino IoT Cloud client, register variables/callbacks,
+# start background tasks (combined time+DS18B20 low-frequency task, cycle-based LED),
+# and run the client loop. Wi‑Fi and NTP are handled in boot.py.
+#
+# Notes:
+# - cycles_circuit_1 (String) defines second marks within a minute (e.g. "5, 10, 20, 40, 50")
+#   at which the LED turns ON for 2 seconds.
+# - All comments are in English as requested.
+
+import logging
+import _thread
+
+from config import (
+    LED_PIN, ACTIVE_LOW,
+    DS18B20_PIN,                    # kept; the interval constant has been removed
+    TIME_UPDATE_PERIOD_S, LED_CYCLE_DURATION_MS, LED_CYCLE_POLL_MS
+)
+
+from hw.led import make_led, set_led
+from cloud.client import create_client
+from cloud.callbacks import onLedChange, onCyclesChange
+from tasks.time_task import time_and_temp_task
+from tasks.cycles_led import cycles_blink_task
+from sensors_ds18b20 import DS18B20Manager
+
+if __name__ == "__main__":
+    logging.basicConfig(
+        datefmt="%H:%M:%S",
+        format="%(asctime)s.%(msecs)03d %(message)s",
+        level=logging.INFO
+    )
+
+    # Hardware
+    led_pin = make_led()  # respects ACTIVE_LOW/LED_PIN
+
+    # Cloud client with variable registrations and callbacks
+    client = create_client({
+        'led_state': {'on_write': lambda c, v: onLedChange(c, set_led, led_pin, v)},
+        'time_zh':   {},          # string timestamp published by the combined task
+        'air_temp':  {},          # DS18B20 'air' (add more e.g. 'water_temp' if needed)
+        'cycles_circuit_1': {'on_write': onCyclesChange},
+    })
+
+    # DS18B20 manager (no standalone thread; used by the combined task)
+    # interval_s parameter is not needed anymore because we do not start manager.loop()
+    manager = DS18B20Manager(client, pin=DS18B20_PIN)
+    # _thread.start_new_thread(manager.loop, ())  # <- not used in the combined approach
+
+    # Start combined low-frequency task: local time (with seconds) + temperatures
+    _thread.start_new_thread(time_and_temp_task, (client, manager, TIME_UPDATE_PERIOD_S))
+
+    # High-frequency: cycle-based LED worker (kept separate for timing accuracy)
+    _thread.start_new_thread(cycles_blink_task, (set_led, led_pin, LED_CYCLE_DURATION_MS, LED_CYCLE_POLL_MS))
+
+    # Blocking cloud loop
+    client.start()
+
+```
+#### sensors_ds18b20.py
+
+```python
+# sensors_ds18b20.py
+# Purpose: Read one or multiple DS18B20 sensors on a OneWire bus and publish
+# named values to the Arduino IoT Cloud as individual variables (name_temp).
+# This version adds read_and_publish_once() for coordinated low-frequency tasks.
+
+from machine import Pin
+import onewire, ds18x20, time
+from config import SENSOR_MAP, TEMP_MIN, TEMP_MAX, OFFSETS
+
+SENSOR_PIN_DEFAULT = 4  # DQ on GPIO4, ~4.7–5 kΩ pull‑up to 3V3
+
+def hex_rom(b):
+    """Return hex-string representation of a ROM ID (bytes)."""
+    return ':'.join(f'{x:02X}' for x in b)
+
+class DS18B20Manager:
+    """
+    Manage multiple DS18B20 sensors on a OneWire bus and publish named readings
+    to the Arduino IoT Cloud as {name}_temp variables.
+    """
+
+    def __init__(self, client, pin=SENSOR_PIN_DEFAULT, interval_s=2):
+        self.client = client
+        self.interval_s = interval_s
+        self.ow = onewire.OneWire(Pin(pin))
+        self.ds = ds18x20.DS18X20(self.ow)
+
+        # Scan at init and store ROMs as immutable bytes
+        scan = self.ds.scan() or []
+        self.roms = [bytes(r) for r in scan]
+
+        if not self.roms:
+            print("⚠️  No DS18B20 sensors found.")
+        else:
+            print("DS18B20 ROMs (hex):", [hex_rom(r) for r in self.roms])
+
+    def _read_all(self):
+        """
+        Convert all sensors, read them, filter implausible raw values,
+        and apply per-sensor offsets. Unknown sensors are returned with HEX keys.
+        """
+        vals = {}
+        if not self.roms:
+            return vals
+
+        try:
+            self.ds.convert_temp()
+        except Exception as e:
+            print("convert_temp error:", e)
+            return vals
+
+        # 12-bit resolution → 750 ms conversion time
+        time.sleep_ms(750)
+
+        for rom in self.roms:
+            try:
+                t = self.ds.read_temp(rom)
+            except Exception as e:
+                print("read_temp error:", e)
+                continue
+
+            # Raw plausibility check (keeps behavior consistent with your version)
+            if t is None or not (TEMP_MIN <= t <= TEMP_MAX):
+                continue
+
+            name = SENSOR_MAP.get(rom)  # bytes key expected
+            if name:
+                t = t + OFFSETS.get(name, 0.0)
+                vals[name] = round(t, 2)
+            else:
+                # Unknown sensor: log with hex key (not published in loop/once)
+                vals[hex_rom(rom)] = round(t, 2)
+
+        return vals
+
+    def read_and_publish_once(self):
+        """Perform one full DS18B20 read cycle and publish named sensors as {name}_temp."""
+        vals = self._read_all()
+        if not vals:
+            return
+        for name, value in vals.items():
+            if not isinstance(name, str):
+                continue  # skip hex keys (unknown sensors)
+            var_name = f"{name}_temp"
+            try:
+                self.client[var_name] = value
+            except Exception as e:
+                print(f"Publish {var_name} error:", e)
+
+    def loop(self):
+        """
+        Endless loop (legacy): read values and publish to {name}_temp.
+        Kept for compatibility; not used in the combined time+temp approach.
+        """
+        while True:
+            vals = self._read_all()
+            if vals:
+                for name, value in vals.items():
+                    if not isinstance(name, str):
+                        continue
+                    var_name = f"{name}_temp"
+                    try:
+                        self.client[var_name] = value
+                    except Exception as e:
+                        print(f"Publish {var_name} error:", e)
+            time.sleep(self.interval_s)
+
+```
+#### tasks/time_zh.py
+```python
+# time_zh.py
+# NTP-Sync und Lokalzeit für Europe/Zurich (CET/CEST)
+
+import time
+import ntptime
+
+def sync_ntp(retries=3, delay_s=1):
+    """Setzt die Systemzeit via NTP (UTC). Gibt True/False zurück."""
+    for _ in range(retries):
+        try:
+            ntptime.settime()
+            return True
+        except:
+            time.sleep(delay_s)
+    return False
+
+def _last_sunday(year, month):
+    """Letzter Sonntag im Monat (0=Mo..6=So)."""
+    # Tag 0 des nächsten Monats ist letzter Tag des aktuellen Monats
+    if month == 12:
+        y2, m2 = year + 1, 1
+    else:
+        y2, m2 = year, month + 1
+    last_day_tuple = time.localtime(
+        time.mktime((y2, m2, 1, 0, 0, 0, 0, 0)) - 24 * 3600
+    )
+    d = last_day_tuple[2]
+    wd = last_day_tuple[6]  # 0=Mo..6=So
+    d -= (wd - 6) % 7
+    return d
+
+def _is_dst_europe_zh(t_utc):
+    """Sommerzeitregel für Europe/Zurich. t_utc ist ein time.localtime()-Tuple (UTC)."""
+    y, m, d, hh = t_utc[0], t_utc[1], t_utc[2], t_utc[3]
+    if m < 3 or m > 10:
+        return False
+    if 4 <= m <= 9:
+        return True
+    # März/Oktober Grenztage (Wechsel 01:00 UTC)
+    if m == 3:
+        sw_day = _last_sunday(y, 3)
+        if d > sw_day: return True
+        if d < sw_day: return False
+        return hh >= 1  # ab 01:00 UTC -> DST an
+    if m == 10:
+        sw_day = _last_sunday(y, 10)
+        if d > sw_day: return False
+        if d < sw_day: return True
+        return hh < 1   # bis 00:59 UTC -> DST an
+    return False
+
+def localtime_ch():
+    """
+    Gibt (t_local, offset_hours, tz_str) zurück.
+    t_local = time.localtime() in Lokalzeit (Europe/Zurich),
+    offset_hours = 1 (CET) oder 2 (CEST),
+    tz_str = "CET" oder "CEST".
+    """
+    t_utc = time.localtime()  # nach NTP ist das UTC
+    offset = 2 if _is_dst_europe_zh(t_utc) else 1
+    t_local = time.localtime(time.mktime(t_utc) + offset * 3600)
+    tz = "CEST" if offset == 2 else "CET"
+    return t_local, offset, tz
+
+```
+
+####  tasks/cycles_led.py
+
+```python
+# tasks/cycles_led.py
+from time import sleep, ticks_ms, ticks_diff
+from time_zh import localtime_ch
+from cloud.callbacks import read_cycle_seconds_snapshot
+
+def cycles_blink_task(set_led_fn, led_pin, duration_ms=2000, poll_ms=100):
+    """
+    Poll current local second; if configured, turn LED ON for duration_ms (non-blocking).
+    """
+    led_active_until = 0
+    last_fired_sec = -1
+
+    while True:
+        try:
+            t_local, _, _ = localtime_ch()
+            sec = t_local[5]  # 0..59
+
+            now = ticks_ms()
+            if led_active_until and ticks_diff(led_active_until, now) <= 0:
+                set_led_fn(led_pin, False)
+                led_active_until = 0
+
+            active_secs = read_cycle_seconds_snapshot()
+            if (sec in active_secs) and (sec != last_fired_sec):
+                set_led_fn(led_pin, True)
+                led_active_until = now + duration_ms
+                last_fired_sec = sec
+                print("[cycles] Fired at second", sec, "for", duration_ms, "ms")
+
+        except Exception as e:
+            print("cycles_blink_task error:", e)
+
+        sleep(poll_ms / 1000.0)
+```
+
+#### cloud/callbacks.py
+
+```python
+# cloud/callbacks.py
+import _thread
+
+# Shared state for cycle seconds, protected by a lock
+_cycle_seconds = set()
+_cycle_lock = _thread.allocate_lock()
+
+def parse_cycle_seconds(s: str):
+    """Parse CSV '5, 10, 20' -> {5,10,20}; clamp to 0..59; ignore junk."""
+    secs = set()
+    if not s:
+        return secs
+    for part in s.split(','):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            v = int(part)
+            if 0 <= v <= 59:
+                secs.add(v)
+        except Exception:
+            pass
+    return secs
+
+def onLedChange(client, set_led_fn, led_pin, value):
+    """
+    on_write for 'led_state'. Kept generic by passing set_led_fn and led_pin.
+    """
+    try:
+        set_led_fn(led_pin, bool(value))
+        print("LED ON!" if value else "LED OFF!")
+    except Exception as e:
+        print("onLedChange error:", e)
+
+def onCyclesChange(client, value):
+    """
+    on_write for 'cycles_circuit_1' (string).
+    """
+    global _cycle_seconds
+    try:
+        text = value if isinstance(value, str) else str(value)
+        new_secs = parse_cycle_seconds(text)
+        with _cycle_lock:
+            _cycle_seconds = new_secs
+        print("Updated cycles_circuit_1 seconds:", sorted(new_secs))
+    except Exception as e:
+        print("cycles_circuit_1 parse error:", e)
+
+def read_cycle_seconds_snapshot():
+    """Thread-safe snapshot used by the LED cycles task."""
+    with _cycle_lock:
+        return set(_cycle_seconds)
+```
+
+#### cloud/client.py
+```python
+# cloud/client.py
+from arduino_iot_cloud import ArduinoCloudClient
+from secrets import DEVICE_ID, CLOUD_PASSWORD
+from cloud.callbacks import onLedChange, onCyclesChange
+
+def create_client(register_map: dict):
+    """
+    Create and return a configured ArduinoCloudClient.
+    register_map: dict of variable_name -> kwargs for register(), e.g.:
+        {
+          'led_state': {'on_write': some_fn},
+          'time_zh':   {},
+          ...
+        }
+    """
+    client = ArduinoCloudClient(
+        device_id=DEVICE_ID,
+        username=DEVICE_ID,
+        password=CLOUD_PASSWORD
+    )
+    for var, kwargs in register_map.items():
+        client.register(var, **kwargs)
+    return client
+
+```
+
+#### hw/led.py
+```python
+# hw/led.py
+from machine import Pin
+from config import LED_PIN, ACTIVE_LOW
+
+def make_led():
+    """Create and return the LED Pin object, OFF by default."""
+    p = Pin(LED_PIN, Pin.OUT)
+    p.value(1 if ACTIVE_LOW else 0)
+    return p
+
+def set_led(pin, on: bool):
+    """Set LED ON/OFF respecting polarity."""
+    if ACTIVE_LOW:
+        pin.value(0 if on else 1)
+    else:
+        pin.value(1 if on else 0)
+
+```
 
 ### Arduino Cloud Setup
 #### Cloud Variables
