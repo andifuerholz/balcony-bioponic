@@ -24,7 +24,7 @@ The bioponics system is built from a set of components aiming for a balcony-scal
 
 - **Two cultivation channels**, each equipped with six holes for net pots used to grow lettuces and other leafy greens.
 - **Two planting containers** for larger crops such as tomatoes or chayote.
-- **One 15l water tank** containing the nutrient solution.
+- **One 15 litres water tank** containing the nutrient solution.
 - **A Biofilter** with cocos a clay balls which creates and maintains the microbial colonies needed to break down organic fertilizers so that nutrients become continuously available to the plants.
 - **One water pump** responsible for circulating the nutrient solution through the system.
 - **Two water control valves** to regulate flow distribution between the cultivation channels and the planting containers.
@@ -625,16 +625,15 @@ Core parts of the system were used for two years — with a simple timer — bef
 
 ### Automation Implementation
 1. Getting the ESP32 running with MicroPython, Wi-Fi, and LED control  
-2. Continuously reading temperature sensors and deriving 10‑minute average values  
-3. Manual control of two water circuits for a defined duration  
-4. Adding automatic control based on defined time intervals  
-5. Measuring the water level in the main water tank  
-6. Controlling a pump from the auxiliary tank to refill the main tank  
-7. Automatic refilling from the auxiliary tank
+2. Continuously reading temperature sensor(s) and update arduino cloud variables and dashboard
+3. Implement low frequent thread for temperature values and higher frequent thread for checking time schedule of watering
+4. Associate temperature ranges to different watering schedules  
+5. Measuring the water level in the main water tank and controlling a pump from the auxiliary tank to refill the main tank  
+6. ...
 
 ### Learning Goals
 1. Understanding how to set up and run the basic hardware and software components  
-2. Learning how to design an appropriate control structure (e.g., a state machine) for reading sensors and controlling actuators  
+2. Learning how to design an appropriate control structure (~ threads) for reading sensors and controlling actuators  
 3. Understanding how to integrate real‑world constraints (timing, temperature thresholds, water levels
 
 
@@ -648,7 +647,7 @@ Core parts of the system were used for two years — with a simple timer — bef
 ```python
 import onewire, ds18x20
 from machine import Pin
-ow = onewire.OneWire(Pin(4))     # dein Bus-Pin
+ow = onewire.OneWire(Pin(4))     # Bus-Pin
 ds = ds18x20.DS18X20(ow)
 print("Gefundene ROMs:", ds.scan())
 ```
