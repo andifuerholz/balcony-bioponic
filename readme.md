@@ -159,17 +159,70 @@ except Exception as e:
 
 ```
 
+#### `secrets.py`
+```python
+# secrets.py
+
+WIFI_LIST = [
+    {"ssid": "[enter 1st SSID here]",   "pwd": "[enter 1st pw here]"},   # 1. Choice
+    {"ssid": "[enter 2nd SSID here]", "pwd": "[enter 2nd pw here]"},   # 2. Choice
+    {"ssid": "[enter 3rd SSID here]", "pwd": "[enter 3rd pw here]"},   # 3. Choice
+]
+
+DEVICE_ID = b"[enter ID here[" # b=Byte-String
+CLOUD_PASSWORD = b[enter pw here]"  # b=Byte-String
+```
+
 #### `config.py`
 ```python
+# config.py
+# Central configuration for pins, timing, and DS18B20 sensor mapping/calibration.
+# All comments are in English as requested.
+
+# ---------------------------------
+# Hardware pins & timing parameters
+# ---------------------------------
+LED_PIN = 48
+ACTIVE_LOW = False
+
+DS18B20_PIN = 4
+
+TIME_UPDATE_PERIOD_S = 1
+LED_CYCLE_DURATION_MS = 1000
+LED_CYCLE_POLL_MS = 100
+
+# ---------------------------------
+# DS18B20 mapping & validation
+# ---------------------------------
+# DS18B20 ROM → friendly name
+# IMPORTANT: Keys must be *bytes* (not bytearray; no HTML-escaped content).
+SENSOR_MAP = {
+    b'\x28\x8e\x01\x48\xf6\x75\x3c\xde': 'air',   # Main ambient sensor
+    # Add more sensors as needed:
+    # b'\x28\xaa\xbb\xcc\xdd\xee\xff\x01': 'water',
+    # b'\x28\x11\x22\x33\x44\x55\x66\x77': 'biofilter',
+}
+
+# Optional per-sensor calibration offsets in °C
+OFFSETS = {
+    'air': 0.5,
+    # 'water': -0.2,
+    # 'biofilter': +0.1,
+}
+
+# Plausibility limits in °C
+# Values outside this range will be discarded.
+TEMP_MIN = -20.0
+TEMP_MAX =  60.0
 
 ```
 
-#### `secrets.py`
-This file stores all credentials required for Wi‑Fi access and for authentication with the Arduino IoT Cloud.  
-It is not part of the public repository and must be created locally by the user.
+
+
+
 
 #### `main.py`
-...
+
 
 ### Arduino Cloud Setup
 #### Cloud Variables
