@@ -1,18 +1,32 @@
 ## Table of Contents
-- [Table of Contents](#table-of-contents)
 - [Project description](#project-description)
 - #hardware
-- [Software](#software)
+- #software
   - [Core Watering Logic](#core-watering-logic)
   - #framework-description
   - [Files](#files)
+    - [boot.py](#bootpy)
+    - [config.py](#configpy)
+    - #mainpy
+    - #cloud
+    - [tasks/](#tasks)
+    - #hw
+    - [state/](#state)
+    - #sensors_ds18b20py
+    - [time_zh.py](#time_zhpy)
+    - #secretspy
   - [Arduino Cloud Setup](#arduino-cloud-setup)
-    - #cloud-variables
-    - [Dashboard](#dashboard)
+    - [Cloud Variables](#cloud-variables)
+    - #dashboard
 - [Implementation Strategy](#implementation-strategy)
-  - [Preliminary Remarks](#preliminary-remarks)
+  - #preliminary-remarks
   - #automation-implementation
   - [Learning Goals](#learning-goals)
+- #appendix
+  - [ESP32 Wiring](#esp32-wiring)
+  - [Connecting a DS18B20 Sensor](#connecting-a-ds18b20-sensor)
+  - [Minimal MicroPython Test Script](#minimal-micropython-test-script)
+  - [Tank swimmer (OpenSCAD)](#tank-swimmer-openscad)
 
 ## Project description
 
