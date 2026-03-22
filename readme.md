@@ -289,13 +289,13 @@ if __name__ == "__main__":
 # sensors_ds18b20.py
 # Purpose: Read one or multiple DS18B20 sensors on a OneWire bus and publish
 # named values to the Arduino IoT Cloud as individual variables (name_temp).
-# This version adds read_and_publish_once() for coordinated low-frequency tasks.
+# Adds read_and_publish_once() for coordinated low-frequency tasks.
 
 from machine import Pin
 import onewire, ds18x20, time
 from config import SENSOR_MAP, TEMP_MIN, TEMP_MAX, OFFSETS
 
-SENSOR_PIN_DEFAULT = 4  # DQ on GPIO4, ~4.7–5 kΩ pull‑up to 3V3
+SENSOR_PIN_DEFAULT = 4  # DQ on GPIO4, ~4.7–5 kΩ pull-up to 3V3
 
 def hex_rom(b):
     """Return hex-string representation of a ROM ID (bytes)."""
@@ -306,7 +306,6 @@ class DS18B20Manager:
     Manage multiple DS18B20 sensors on a OneWire bus and publish named readings
     to the Arduino IoT Cloud as {name}_temp variables.
     """
-
     def __init__(self, client, pin=SENSOR_PIN_DEFAULT, interval_s=2):
         self.client = client
         self.interval_s = interval_s
@@ -316,9 +315,8 @@ class DS18B20Manager:
         # Scan at init and store ROMs as immutable bytes
         scan = self.ds.scan() or []
         self.roms = [bytes(r) for r in scan]
-
         if not self.roms:
-            print("⚠️  No DS18B20 sensors found.")
+            print("⚠️ No DS18B20 sensors found.")
         else:
             print("DS18B20 ROMs (hex):", [hex_rom(r) for r in self.roms])
 
@@ -330,7 +328,6 @@ class DS18B20Manager:
         vals = {}
         if not self.roms:
             return vals
-
         try:
             self.ds.convert_temp()
         except Exception as e:
@@ -347,7 +344,7 @@ class DS18B20Manager:
                 print("read_temp error:", e)
                 continue
 
-            # Raw plausibility check (keeps behavior consistent with your version)
+            # Raw plausibility check
             if t is None or not (TEMP_MIN <= t <= TEMP_MAX):
                 continue
 
@@ -358,7 +355,6 @@ class DS18B20Manager:
             else:
                 # Unknown sensor: log with hex key (not published in loop/once)
                 vals[hex_rom(rom)] = round(t, 2)
-
         return vals
 
     def read_and_publish_once(self):
@@ -374,6 +370,14 @@ class DS18B20Manager:
                 self.client[var_name] = value
             except Exception as e:
                 print(f"Publish {var_name} error:", e)
+
+            # Update runtime temperature state for 'air'
+            if name == 'air':
+                try:
+                    from state.runtime import set_air_temp
+                    set_air_temp(value)
+                except Exception:
+                    pass
 
     def loop(self):
         """
