@@ -86,12 +86,12 @@ The system uses several components, libraries and external services:
 
 ### Files
 
-📄 boot.py
-📄 config.py
-📄 main.py
-📄 secrets.py
-📄 sensors_ds18b20.py
-📄 time_zh.py
+📄 boot.py<br>
+📄 config.py<br>
+📄 main.py<br>
+📄 secrets.py<br>
+📄 sensors_ds18b20.py<br>
+📄 time_zh.py<br>
 📁 cloud/
 	📄 cloud/client.py
 	📄 cloud/callbacks.py
