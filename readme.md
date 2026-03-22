@@ -72,25 +72,29 @@ The system uses several components, libraries and external services:
 
 ### Files
 
-/project
-├─ lib/
-├─ boot.py
-├─ config.py
-├─ main.py
-├─ cloud/
-│  ├─ client.py
-│  └─ callbacks.py
-├─ tasks/
-│  ├─ time_task.py
-│  └─ cycles_led.py
-├─ hw/
-│  ├─ led.py
-│  └─ pins.py
-├─ state/
-│  └─ runtime.py
-├─ sensors_ds18b20.py
-├─ time_zh.py
-└─ secrets.py
+├── boot.py
+├── config.py
+├── main.py
+├── secrets.py
+├── sensors_ds18b20.py
+├── time_zh.py
+│
+├── lib/
+│
+├── cloud/
+│   ├── client.py
+│   └── callbacks.py
+│
+├── tasks/
+│   ├── time_task.py
+│   └── cycles_led.py
+│
+├── hw/
+│   ├── led.py
+│   └── pins.py
+│
+└── state/
+    └── runtime.py
 
 #### `boot.py`
 
