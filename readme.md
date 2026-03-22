@@ -225,62 +225,118 @@ TEMP_MAX =  60.0
 
 ```python
 # main.py
-# Purpose: Initialize Arduino IoT Cloud client, register variables/callbacks,
-# start background tasks (combined time+DS18B20 low-frequency task, cycle-based LED),
-# and run the client loop. Wi‑Fi and NTP are handled in boot.py.
+# Purpose:
+#   Initialize Arduino IoT Cloud client, register variables/callbacks,
+#   start background tasks (combined local time + DS18B20 readings, cycle-based LED),
+#   and run the client loop. Wi‑Fi and NTP are handled in boot.py.
 #
 # Notes:
-# - cycles_circuit_1 (String) defines second marks within a minute (e.g. "5, 10, 20, 40, 50")
-#   at which the LED turns ON for 2 seconds.
-# - All comments are in English as requested.
+#   - Development mode: the "watering" events are simulated by toggling the on-board LED.
+#   - The cycle schedule is temperature-dependent and provided as a multi-line profile string
+#     per circuit via Arduino Cloud variables `cycles_circuit_1` and `cycles_circuit_2`, e.g.:
+#         0°C: 0, 30
+#         20°C: 0, 20, 40
+#         25°C: 0, 15, 30, 45
+#   - Rule: for the current ambient temperature, select the seconds-set of the highest
+#     threshold that is <= current temperature (0°C acts as default).
+#   - Optional read-only mirrors `cycles_circuit_1_effective` / `_2_effective` publish
+#     the currently active seconds (comma-separated) for dashboard visibility.
 
 import logging
 import _thread
 
 from config import (
     LED_PIN, ACTIVE_LOW,
-    DS18B20_PIN,                    # kept; the interval constant has been removed
-    TIME_UPDATE_PERIOD_S, LED_CYCLE_DURATION_MS, LED_CYCLE_POLL_MS
+    DS18B20_PIN,
+    TIME_UPDATE_PERIOD_S,
+    LED_CYCLE_DURATION_MS, LED_CYCLE_POLL_MS,
 )
 
 from hw.led import make_led, set_led
 from cloud.client import create_client
-from cloud.callbacks import onLedChange, onCyclesChange
+from cloud.callbacks import (
+    onLedChange,
+    onCycles1Change, onCycles2Change,
+    seconds_for_temp,        # selector: seconds_for_temp(c_key, temp_c)
+)
 from tasks.time_task import time_and_temp_task
 from tasks.cycles_led import cycles_blink_task
 from sensors_ds18b20 import DS18B20Manager
+from state.runtime import get_air_temp     # thread-safe getter for current ambient temp
 
-if __name__ == "__main__":
+
+def main():
+    # Basic logging setup
     logging.basicConfig(
         datefmt="%H:%M:%S",
         format="%(asctime)s.%(msecs)03d %(message)s",
-        level=logging.INFO
+        level=logging.INFO,
     )
 
-    # Hardware
-    led_pin = make_led()  # respects ACTIVE_LOW/LED_PIN
+    # --- Hardware setup (LED as actuator placeholder) ---
+    led_pin = make_led()  # respects ACTIVE_LOW/LED_PIN from config
 
-    # Cloud client with variable registrations and callbacks
+    # --- Cloud client & variables registration ---
+    # Expect the following variables to exist in Arduino Cloud:
+    #   - led_state                  (bool; R/W)
+    #   - time_zh                    (string; R/O)
+    #   - air_temp                   (float; R/O)  → published by sensor task
+    #   - cycles_circuit_1           (string; R/W) → profile text or legacy CSV seconds
+    #   - cycles_circuit_2           (string; R/W) → profile text or legacy CSV seconds
+    #   - cycles_circuit_1_effective (string; R/O) → comma-separated active seconds
+    #   - cycles_circuit_2_effective (string; R/O) → comma-separated active seconds
     client = create_client({
         'led_state': {'on_write': lambda c, v: onLedChange(c, set_led, led_pin, v)},
-        'time_zh':   {},          # string timestamp published by the combined task
-        'air_temp':  {},          # DS18B20 'air' (add more e.g. 'water_temp' if needed)
-        'cycles_circuit_1': {'on_write': onCyclesChange},
+        'time_zh': {},
+        'air_temp': {},
+        'cycles_circuit_1': {'on_write': onCycles1Change},
+        'cycles_circuit_2': {'on_write': onCycles2Change},
+        # Read-only mirrors (strings like "0,15,30,45" when the effective set changes):
+        'cycles_circuit_1_effective': {},
+        'cycles_circuit_2_effective': {},
     })
 
-    # DS18B20 manager (no standalone thread; used by the combined task)
-    # interval_s parameter is not needed anymore because we do not start manager.loop()
+    # --- Sensors manager (DS18B20) ---
+    #   Publishes named temps as {name}_temp (e.g., air_temp) and updates runtime state.
     manager = DS18B20Manager(client, pin=DS18B20_PIN)
-    # _thread.start_new_thread(manager.loop, ())  # <- not used in the combined approach
 
-    # Start combined low-frequency task: local time (with seconds) + temperatures
-    _thread.start_new_thread(time_and_temp_task, (client, manager, TIME_UPDATE_PERIOD_S))
+    # --- Background tasks ---
+    # 1) Low-frequency combined task: local time string + temperature readings
+    _thread.start_new_thread(
+        time_and_temp_task,
+        (client, manager, TIME_UPDATE_PERIOD_S)
+    )
 
-    # High-frequency: cycle-based LED worker (kept separate for timing accuracy)
-    _thread.start_new_thread(cycles_blink_task, (set_led, led_pin, LED_CYCLE_DURATION_MS, LED_CYCLE_POLL_MS))
+    # 2) High-frequency cycle workers (development: both circuits use the same LED output)
+    #    Later, replace set_led/led_pin per circuit with dedicated GPIOs for valves/pumps.
+    _thread.start_new_thread(
+        cycles_blink_task,
+        (
+            set_led, led_pin,
+            LED_CYCLE_DURATION_MS, LED_CYCLE_POLL_MS,
+            get_air_temp,                         # temperature getter
+            lambda t: seconds_for_temp('c1', t),  # selector for circuit 1
+            client, 'cycles_circuit_1_effective'  # publish effective set (optional)
+        )
+    )
 
-    # Blocking cloud loop
+    _thread.start_new_thread(
+        cycles_blink_task,
+        (
+            set_led, led_pin,
+            LED_CYCLE_DURATION_MS, LED_CYCLE_POLL_MS,
+            get_air_temp,                         # temperature getter
+            lambda t: seconds_for_temp('c2', t),  # selector for circuit 2
+            client, 'cycles_circuit_2_effective'  # publish effective set (optional)
+        )
+    )
+
+    # --- Blocking cloud loop ---
     client.start()
+
+
+if __name__ == "__main__":
+    main()
 
 ```
 #### sensors_ds18b20.py
