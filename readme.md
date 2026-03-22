@@ -73,7 +73,7 @@ The system uses several components, libraries and external services:
 ### Files
 
 /project
-├─lib/
+├─ lib/
 ├─ boot.py
 ├─ config.py
 ├─ main.py
@@ -86,6 +86,8 @@ The system uses several components, libraries and external services:
 ├─ hw/
 │  ├─ led.py
 │  └─ pins.py
+├─ state/
+│  └─ runtime.py
 ├─ sensors_ds18b20.py
 ├─ time_zh.py
 └─ secrets.py
