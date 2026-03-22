@@ -92,20 +92,20 @@ The system uses several components, libraries and external services:
 📄 secrets.py<br>
 📄 sensors_ds18b20.py<br>
 📄 time_zh.py<br>
-📁 cloud/
-	📄 cloud/client.py
-	📄 cloud/callbacks.py
-📁 tasks/
-	📄 tasks/time_task.py
-	📄 tasks/cycles_led.py
-📁 hw/
-	📄 hw/led.py
-	📄 hw/pins.py
-📁 state/
-	📄 state/runtime.py
-📁 lib/
-	📄 ...
-	📄 ...
+📁 cloud/<br>
+	📄 cloud/client.py<br>
+	📄 cloud/callbacks.py<br>
+📁 tasks/<br>
+	📄 tasks/time_task.py<br>
+	📄 tasks/cycles_led.py<br>
+📁 hw/<br>
+	📄 hw/led.py<br>
+	📄 hw/pins.py<br>
+📁 state/<br>
+	📄 state/runtime.py<br>
+📁 lib/<br>
+	📄 ...<br>
+	📄 ...<br>
 
 #### `boot.py`
 
