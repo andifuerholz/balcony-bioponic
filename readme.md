@@ -219,7 +219,25 @@ TEMP_MIN = -20.0
 TEMP_MAX =  60.0
 
 ```
+### state/runtime.py
+```python
+# state/runtime.py
+import _thread
 
+_air_temp = None
+_lock = _thread.allocate_lock()
+
+def set_air_temp(value: float):
+    """Update last known ambient temperature (°C)."""
+    global _air_temp
+    with _lock:
+        _air_temp = float(value)
+
+def get_air_temp(default=None):
+    """Get last known ambient temperature (°C) or default if unknown."""
+    with _lock:
+        return _air_temp if _air_temp is not None else default
+```
 
 #### `main.py`
 
@@ -454,71 +472,48 @@ class DS18B20Manager:
             time.sleep(self.interval_s)
 
 ```
-#### tasks/time_zh.py
+#### tasks/time_task.py
 ```python
-# time_zh.py
-# NTP-Sync und Lokalzeit für Europe/Zurich (CET/CEST)
+# tasks/time_task.py
+# Purpose:
+#   Low-frequency task that (1) publishes a human-readable local time string
+#   and (2) reads DS18B20 sensors once per cycle and publishes their values.
 
 import time
-import ntptime
+from time_zh import localtime_ch
 
-def sync_ntp(retries=3, delay_s=1):
-    """Setzt die Systemzeit via NTP (UTC). Gibt True/False zurück."""
-    for _ in range(retries):
+def _fmt_time_str(t_local, tz_str):
+    # t_local: (Y, M, D, hh, mm, ss, wd, yd)
+    Y, M, D, hh, mm, ss = t_local[0], t_local[1], t_local[2], t_local[3], t_local[4], t_local[5]
+    # ISO-like "YYYY-MM-DD hh:mm:ss TZ"
+    return "{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d} {}".format(Y, M, D, hh, mm, ss, tz_str)
+
+def time_and_temp_task(client, ds18_manager, period_s=1):
+    """
+    Publishes:
+      - time_zh: local date-time string with TZ (CET/CEST)
+      - {name}_temp: per-sensor temp readings via DS18B20Manager.read_and_publish_once()
+    """
+    # First immediate publish to avoid dashboard silence on boot
+    try:
+        t_local, _, tz = localtime_ch()
+        client['time_zh'] = _fmt_time_str(t_local, tz)
+    except Exception:
+        pass
+
+    while True:
         try:
-            ntptime.settime()
-            return True
-        except:
-            time.sleep(delay_s)
-    return False
+            # 1) Local time (Europe/Zurich)
+            t_local, _, tz = localtime_ch()
+            client['time_zh'] = _fmt_time_str(t_local, tz)
 
-def _last_sunday(year, month):
-    """Letzter Sonntag im Monat (0=Mo..6=So)."""
-    # Tag 0 des nächsten Monats ist letzter Tag des aktuellen Monats
-    if month == 12:
-        y2, m2 = year + 1, 1
-    else:
-        y2, m2 = year, month + 1
-    last_day_tuple = time.localtime(
-        time.mktime((y2, m2, 1, 0, 0, 0, 0, 0)) - 24 * 3600
-    )
-    d = last_day_tuple[2]
-    wd = last_day_tuple[6]  # 0=Mo..6=So
-    d -= (wd - 6) % 7
-    return d
+            # 2) DS18B20 readings (also updates runtime air temperature state)
+            ds18_manager.read_and_publish_once()
 
-def _is_dst_europe_zh(t_utc):
-    """Sommerzeitregel für Europe/Zurich. t_utc ist ein time.localtime()-Tuple (UTC)."""
-    y, m, d, hh = t_utc[0], t_utc[1], t_utc[2], t_utc[3]
-    if m < 3 or m > 10:
-        return False
-    if 4 <= m <= 9:
-        return True
-    # März/Oktober Grenztage (Wechsel 01:00 UTC)
-    if m == 3:
-        sw_day = _last_sunday(y, 3)
-        if d > sw_day: return True
-        if d < sw_day: return False
-        return hh >= 1  # ab 01:00 UTC -> DST an
-    if m == 10:
-        sw_day = _last_sunday(y, 10)
-        if d > sw_day: return False
-        if d < sw_day: return True
-        return hh < 1   # bis 00:59 UTC -> DST an
-    return False
+        except Exception as e:
+            print("time_and_temp_task error:", e)
 
-def localtime_ch():
-    """
-    Gibt (t_local, offset_hours, tz_str) zurück.
-    t_local = time.localtime() in Lokalzeit (Europe/Zurich),
-    offset_hours = 1 (CET) oder 2 (CEST),
-    tz_str = "CET" oder "CEST".
-    """
-    t_utc = time.localtime()  # nach NTP ist das UTC
-    offset = 2 if _is_dst_europe_zh(t_utc) else 1
-    t_local = time.localtime(time.mktime(t_utc) + offset * 3600)
-    tz = "CEST" if offset == 2 else "CET"
-    return t_local, offset, tz
+        time.sleep(period_s if period_s and period_s > 0 else 1)
 
 ```
 
@@ -528,26 +523,61 @@ def localtime_ch():
 # tasks/cycles_led.py
 from time import sleep, ticks_ms, ticks_diff
 from time_zh import localtime_ch
-from cloud.callbacks import read_cycle_seconds_snapshot
 
-def cycles_blink_task(set_led_fn, led_pin, duration_ms=2000, poll_ms=100):
+def cycles_blink_task(set_led_fn,
+                      led_pin,
+                      duration_ms=2000,
+                      poll_ms=100,
+                      get_temp_fn=None,
+                      select_secs_fn=None,
+                      client=None,
+                      effective_var_name=None):
     """
     Poll current local second; if configured, turn LED ON for duration_ms (non-blocking).
+
+    Args:
+        set_led_fn: function(pin, on_bool) -> None
+        led_pin: Pin object for the LED/valve
+        duration_ms: ON duration for each trigger event
+        poll_ms: loop poll interval
+        get_temp_fn: () -> float|None, returns current ambient temp in °C
+        select_secs_fn: (temp_c: float|None) -> set[int], seconds active for given temperature
+        client: ArduinoCloudClient to publish effective set changes (optional)
+        effective_var_name: Cloud variable name (string) to publish comma-separated seconds
     """
     led_active_until = 0
     last_fired_sec = -1
+    last_effective = None
 
     while True:
         try:
             t_local, _, _ = localtime_ch()
             sec = t_local[5]  # 0..59
-
             now = ticks_ms()
+
+            # Turn LED off when the pulse duration has elapsed
             if led_active_until and ticks_diff(led_active_until, now) <= 0:
                 set_led_fn(led_pin, False)
                 led_active_until = 0
 
-            active_secs = read_cycle_seconds_snapshot()
+            # Determine active seconds set for current temperature
+            if select_secs_fn:
+                temp_c = get_temp_fn() if get_temp_fn else None
+                active_secs = select_secs_fn(temp_c)
+            else:
+                active_secs = set()
+
+            # Optionally publish the effective set whenever it changes
+            if client and effective_var_name is not None:
+                eff_tuple = tuple(sorted(active_secs))
+                if eff_tuple != last_effective:
+                    try:
+                        client[effective_var_name] = ','.join(map(str, eff_tuple))
+                    except Exception:
+                        pass
+                    last_effective = eff_tuple
+
+            # Fire once per matching second
             if (sec in active_secs) and (sec != last_fired_sec):
                 set_led_fn(led_pin, True)
                 led_active_until = now + duration_ms
@@ -566,9 +596,12 @@ def cycles_blink_task(set_led_fn, led_pin, duration_ms=2000, poll_ms=100):
 # cloud/callbacks.py
 import _thread
 
-# Shared state for cycle seconds, protected by a lock
-_cycle_seconds = set()
-_cycle_lock = _thread.allocate_lock()
+# Per-circuit state
+_state = {
+    'c1': {'profiles': None, 'secs': set()},
+    'c2': {'profiles': None, 'secs': set()},
+}
+_lock = _thread.allocate_lock()
 
 def parse_cycle_seconds(s: str):
     """Parse CSV '5, 10, 20' -> {5,10,20}; clamp to 0..59; ignore junk."""
@@ -587,6 +620,58 @@ def parse_cycle_seconds(s: str):
             pass
     return secs
 
+def _parse_profile_line(line: str):
+    """
+    One line '20°C: 0, 20, 40' or '25: 0,15,30,45'
+    Returns (threshold:int, seconds:set[int]) or None on parse failure.
+    """
+    if ':' not in line:
+        return None
+    left, right = line.split(':', 1)
+    left = left.strip().replace('°C', '').replace('°', '')
+    try:
+        thr = int(left)
+    except Exception:
+        return None
+    secs = parse_cycle_seconds(right)
+    return thr, secs
+
+def parse_temp_profiles(text: str):
+    """
+    Multi-line string with threshold profiles.
+    Returns sorted list of (threshold, seconds) by ascending threshold.
+    """
+    if not isinstance(text, str):
+        text = str(text)
+    items = []
+    # Be tolerant: allow either newline or ';' as separators
+    for chunk in text.replace(';', '\n').splitlines():
+        line = chunk.strip()
+        if not line:
+            continue
+        item = _parse_profile_line(line)
+        if item:
+            items.append(item)
+    if not items:
+        return None
+    # Deduplicate thresholds: keep last occurrence of each threshold
+    dedup = {}
+    for thr, secs in items:
+        dedup[thr] = set(secs)
+    return sorted(((thr, dedup[thr]) for thr in dedup), key=lambda x: x[0])
+
+def _update_circuit_from_text(c_key: str, text: str):
+    prof = parse_temp_profiles(text)
+    with _lock:
+        if prof:
+            _state[c_key]['profiles'] = prof
+            _state[c_key]['secs'] = set()  # clear legacy
+            print(f"[{c_key}] thresholds:", [thr for thr, _ in prof])
+        else:
+            _state[c_key]['profiles'] = None
+            _state[c_key]['secs'] = parse_cycle_seconds(text)
+            print(f"[{c_key}] legacy seconds:", sorted(_state[c_key]['secs']))
+
 def onLedChange(client, set_led_fn, led_pin, value):
     """
     on_write for 'led_state'. Kept generic by passing set_led_fn and led_pin.
@@ -597,24 +682,43 @@ def onLedChange(client, set_led_fn, led_pin, value):
     except Exception as e:
         print("onLedChange error:", e)
 
-def onCyclesChange(client, value):
+def onCycles1Change(client, value):
     """
     on_write for 'cycles_circuit_1' (string).
+    Supports both legacy CSV and temperature-profile strings.
     """
-    global _cycle_seconds
-    try:
-        text = value if isinstance(value, str) else str(value)
-        new_secs = parse_cycle_seconds(text)
-        with _cycle_lock:
-            _cycle_seconds = new_secs
-        print("Updated cycles_circuit_1 seconds:", sorted(new_secs))
-    except Exception as e:
-        print("cycles_circuit_1 parse error:", e)
+    text = value if isinstance(value, str) else str(value)
+    _update_circuit_from_text('c1', text)
 
-def read_cycle_seconds_snapshot():
-    """Thread-safe snapshot used by the LED cycles task."""
-    with _cycle_lock:
-        return set(_cycle_seconds)
+def onCycles2Change(client, value):
+    """
+    on_write for 'cycles_circuit_2' (string).
+    Supports both legacy CSV and temperature-profile strings.
+    """
+    text = value if isinstance(value, str) else str(value)
+    _update_circuit_from_text('c2', text)
+
+def seconds_for_temp(c_key: str, temp_c):
+    """
+    Return active seconds for given temperature for the given circuit key ('c1'/'c2').
+    Rule: use the profile with the highest threshold <= temp_c.
+    If no profile is configured, fall back to the legacy seconds set.
+    If temp is None, use the lowest-threshold profile (if present).
+    """
+    with _lock:
+        prof = _state[c_key]['profiles']
+        if not prof:
+            return set(_state[c_key]['secs'])
+        if temp_c is None:
+            return set(prof[0][1]) if prof else set()
+        active = set()
+        for thr, secs in prof:
+            if temp_c >= thr:
+                active = secs
+            else:
+                break
+        return set(active)
+
 ```
 
 #### cloud/client.py
@@ -622,21 +726,21 @@ def read_cycle_seconds_snapshot():
 # cloud/client.py
 from arduino_iot_cloud import ArduinoCloudClient
 from secrets import DEVICE_ID, CLOUD_PASSWORD
-from cloud.callbacks import onLedChange, onCyclesChange
 
 def create_client(register_map: dict):
     """
     Create and return a configured ArduinoCloudClient.
+
     register_map: dict of variable_name -> kwargs for register(), e.g.:
-        {
-          'led_state': {'on_write': some_fn},
-          'time_zh':   {},
-          ...
-        }
+      {
+        'led_state': {'on_write': some_fn},
+        'time_zh': {},
+        ...
+      }
     """
     client = ArduinoCloudClient(
         device_id=DEVICE_ID,
-        username=DEVICE_ID,
+        username=DEVICE_ID,     # Arduino IoT Cloud uses deviceId as username for token auth
         password=CLOUD_PASSWORD
     )
     for var, kwargs in register_map.items():
