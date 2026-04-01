@@ -1175,8 +1175,65 @@ while True:
     time.sleep(5)
 
 ```
+### Water Level Sensing Subsystem (PCF8574T + Reed Switches)
 
-### Tank swimmer
+#### Overview
+
+The main tank contains a **vertical float with six embedded magnets**, each positioned at a fixed height.  
+Along the tank wall, **six reed switches** are mounted at corresponding levels.
+
+A **PCF8574T I/O expander** reads the reed switches via I²C, providing a simple and robust way to measure the tank fill level.
+
+- **Channel 0 = lowest water level**  
+- **Channel 5 = highest water level**  
+- Reeds are **normally open**  
+- A reed closes (logic **0**) when the float’s magnet is at its height  
+- Up to **two sensors can be closed simultaneously**, representing the float being between two levels  
+
+The system converts reed states into a **0–100% fill level**, rounded to **10%** steps.
+
+---
+
+#### System Diagram & Interpretation
+
+Reed Sensor Subsystem Architecture
+
+```
+              (Top of Tank – 100%)
+                 ┌──────────────────────────┐
+                 │  Level 5 ──── Reed (CH5) ├─────┐
+                 ├──────────────────────────┤     │
+                 │  Level 4 ──── Reed (CH4) ├──┐  │
+                 ├──────────────────────────┤  │  │
+                 │  Level 3 ──── Reed (CH3) ├─┐│  │
+Float with       ├──────────────────────────┤ ││  │
+magnets          │  Level 2 ──── Reed (CH2) ├┐││  │
+moves up/down →  ├──────────────────────────┤│││  │
+                 │  Level 1 ──── Reed (CH1) ├┘││  │
+                 ├──────────────────────────┤ ││  │
+                 │  Level 0 ──── Reed (CH0) ├─┘│  │
+                 └──────────────────────────┘   │ │
+                                                │ │
+PCF8574T Input Pins 0..5  <─────────────────────┘ │
+                                                │
+SDA (GPIO6)  <──────────────────────────────────┘
+SCL (GPIO5)
+```
+
+Example Interpretation
+
+| Closed reeds | Level (avg) | Percent | Rounded | Output |
+|--------------|-------------|---------|---------|---------|
+| `{}`         | —           | —       | —       | **−1** |
+| `{0}`        | 0           | 0%      | 0%      | 0 |
+| `{2}`        | 2           | 40%     | 40%     | 40 |
+| `{3,4}`      | 3.5         | 70%     | 70%     | 70 |
+| `{5}`        | 5           | 100%    | 100%    | 100 |
+
+---
+
+
+#### Tank swimmer
 constructed with OpenSCAD:
 
 /*
