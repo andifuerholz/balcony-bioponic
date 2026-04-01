@@ -43,7 +43,7 @@ The bioponics system is built from a set of components aiming for a balcony-scal
 - **One water pump** responsible for circulating the nutrient solution through the system.
 - **Two water control valves** to regulate flow distribution between the cultivation channels and the planting containers.
 - **One air pump** which supplies oxygen to keep the microbial communities active so they can efficiently break down organic nutrients
-- **One Arduino Nano ESP32**, serving as the central microcontroller for automation and pump control.
+- **One Arduino Nano ESP32 S3**, serving as the central microcontroller for automation and pump control.
 - **Additional electronic components**, including relays, voltage converters, a power supply, and supporting circuitry.
 - **One outdoor temperature sensor (DS18B20)** to measure ambient temperature.
 - **One water temperature sensor (DS18B20)** to monitor the nutrient solution temperature.
