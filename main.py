@@ -1,83 +1,133 @@
 # main.py
-# Purpose: Initialize Arduino IoT Cloud client, register variables/callbacks,
-# start background tasks (local time updater, DS18B20 manager), and run the
-# client loop. Wi‑Fi and NTP are handled in boot.py.
+# Purpose:
+# Initialize Arduino IoT Cloud client, register variables/callbacks,
+# start background tasks (combined local time + DS18B20 readings, cycle-based LED),
+# and run the client loop. Wi‑Fi and NTP are handled in boot.py.
+#
+# Enhancements:
+# - switchDuration_circuit_1 (seconds) from cloud controls pulse length
+# - startHour / endHour (Time) define active day window for triggering
+# - cycles_blink_task reads duration + window via thread-safe getters
 
-from machine import Pin
-from time import sleep
+
 import logging
 import _thread
-from arduino_iot_cloud import ArduinoCloudClient
-
-# Secrets (provided locally; do NOT commit)
-from secrets import DEVICE_ID, CLOUD_PASSWORD
-
-# Local Zurich time util → returns (t_local, tz_name, tz_offset)
-from time_zh import localtime_ch
-
-# DS18B20 multi-sensor manager
+from machine import I2C, Pin
+import tankReeds
+from config import (
+    DS18B20_PIN,
+    TIME_UPDATE_PERIOD_S,
+    LED_CYCLE_POLL_MS,
+    I2C_SCL_PIN,
+    I2C_SDA_PIN,
+)
+from hw.led import make_led, set_led
+from cloud.client import create_client
+from cloud.callbacks import (
+    onLedChange,
+    onCycles1Change, onCycles2Change,
+    seconds_for_temp,
+    onC1DurationChange,
+    onStartHourChange, onEndHourChange,
+)
+from tasks.time_task import time_and_temp_task
+from tasks.cycles_led import cycles_blink_task
 from sensors_ds18b20 import DS18B20Manager
+from state.runtime import (
+    get_air_temp,
+    get_c1_duration_s,
+    get_active_window_minutes,
+)
 
-# Hardware: Onboard LED (ESP32)
-led_pin = Pin(2, Pin.OUT)
 
-def onLedChange(client, value):
-    """
-    Cloud on_write callback for variable 'led_state'.
-    Turns the onboard LED on/off.
-    """
-    led_pin.value(1 if value else 0)
-    print("LED ON!" if value else "LED OFF!")
-
-def time_update_task(client):
-    """
-    Background thread: update 'time_zh' every minute with local time (Europe/Zurich).
-    Note: Publishes only once per minute. Consider guarding with client.connected.
-    """
-    while True:
-        try:
-            t_local, _, _ = localtime_ch()
-            timestamp = "{:04d}-{:02d}-{:02d} {:02d}:{:02d}".format(
-                t_local[0], t_local[1], t_local[2], t_local[3], t_local[4]
-            )
-            # Optional: if not getattr(client, "connected", False): sleep(1); continue
-            client["time_zh"] = timestamp
-            print("Updated time_zh:", timestamp)
-        except Exception as e:
-            print("Time thread error:", e)
-        sleep(60)
-
-if __name__ == "__main__":
-    # Configure root logger (MicroPython may ignore some advanced formatting)
+def main():
+    # Basic logging setup
     logging.basicConfig(
         datefmt="%H:%M:%S",
         format="%(asctime)s.%(msecs)03d %(message)s",
-        level=logging.INFO
+        level=logging.INFO,
     )
 
-    # Wi‑Fi & NTP are handled in boot.py
+    # --- Hardware setup (LED as actuator placeholder) ---
+    led_pin = make_led()  # respects ACTIVE_LOW/LED_PIN from config
+    
+    
+    # I2C BUS ERZEUGEN
+    i2c = I2C(0, scl=Pin(I2C_SCL_PIN), sda=Pin(I2C_SDA_PIN), freq=100000)
 
-    # Create Arduino IoT Cloud client
-    client = ArduinoCloudClient(
-        device_id=DEVICE_ID,
-        username=DEVICE_ID,
-        password=CLOUD_PASSWORD
-        # Optionally: ssl_params={'cadata': ARDUINO_CA}
+    # Tank‑Level Modul damit verbinden
+    tankReeds.init(i2c)
+
+    # --- Cloud client & variables registration ---
+    # Expect the following variables to exist in Arduino Cloud:
+    # - led_state (bool; R/W)
+    # - time_zh (string; R/O)
+    # - air_temp (float; R/O) → published by sensor task
+    # - cycles_circuit_1 (string; R/W) → profile text or legacy CSV seconds
+    # - cycles_circuit_2 (string; R/W) → profile text or legacy CSV seconds
+    # - switchDuration_circuit_1 (int/number; R/W) → pulse length (seconds)
+    # - startHour (time; R/W) → active window start (local time)
+    # - endHour   (time; R/W) → active window end   (local time)
+    # - cycles_circuit_1_effective (string; R/O) → comma-separated active seconds
+    # - cycles_circuit_2_effective (string; R/O) → comma-separated active seconds
+    client = create_client({
+        'led_state': {'on_write': lambda c, v: onLedChange(c, set_led, led_pin, v)},
+        'time_zh': {},
+        'air_temp': {},
+        'cycles_circuit_1': {'on_write': onCycles1Change},
+        'cycles_circuit_2': {'on_write': onCycles2Change},
+        'switchDuration_circuit_1': {'on_write': onC1DurationChange},  # NEW
+        'startHour': {'on_write': onStartHourChange},                   # NEW
+        'endHour':   {'on_write': onEndHourChange},                     # NEW
+        # Read-only mirrors (strings like "0,15,30,45" when the effective set changes):
+        'cycles_circuit_1_effective': {},
+        'cycles_circuit_2_effective': {},
+        'tankLevel': {},
+    })
+
+    # --- Sensors manager (DS18B20) ---
+    # Publishes named temps as {name}_temp (e.g., air_temp) and updates runtime state.
+    manager = DS18B20Manager(client, pin=DS18B20_PIN)
+
+    # --- Background tasks ---
+    # 1) Low-frequency combined task: local time string + temperature readings
+    _thread.start_new_thread(
+        time_and_temp_task,
+        (client, manager, TIME_UPDATE_PERIOD_S)
     )
 
-    # Register cloud variables
-    client.register('led_state', on_write=onLedChange)
-    client.register('time_zh')      # write-only timestamp
-    client.register('air_temp')     # for sensor named 'air'
-    # Optional: register additional named sensors
-    # client.register('water_temp')
-    # client.register('biofilter_temp')
+    # 2) High-frequency cycle workers (development: both circuits use the same LED output)
+    # Circuit 1: temperature-driven schedule *and* cloud-driven pulse duration + active window
+    _thread.start_new_thread(
+        cycles_blink_task,
+        (
+            set_led, led_pin,
+            LED_CYCLE_POLL_MS,
+            get_air_temp,                                 # temperature getter
+            lambda t: seconds_for_temp('c1', t),          # selector for circuit 1
+            client, 'cycles_circuit_1_effective',
+            get_c1_duration_s,
+            get_active_window_minutes,
+        )
+    )
 
-    # Start background threads after client creation
-    _thread.start_new_thread(time_update_task, (client,))
+    # Circuit 2: keep existing behavior (no window/duration override yet)
+    _thread.start_new_thread(
+        cycles_blink_task,
+        (
+            set_led, led_pin,
+            LED_CYCLE_POLL_MS,
+            get_air_temp,                                 # temperature getter
+            lambda t: seconds_for_temp('c2', t),          # selector for circuit 2
+            client, 'cycles_circuit_2_effective',
+            None,                                         # duration -> default
+            None,                                         # window -> always active
+        )
+    )
 
-    manager = DS18B20Manager(client, pin=4, interval_s=2)
-    _thread.start_new_thread(manager.loop, ())
-
-    # Blocking cloud loop (keeps the client alive)
+    # --- Blocking cloud loop ---
     client.start()
+
+if __name__ == "__main__":
+    main()
+
