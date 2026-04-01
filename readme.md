@@ -88,10 +88,11 @@ The system uses several components, libraries and external services:
 
 📄 boot.py<br>
 📄 config.py<br>
-📄 <br>
 📄 secrets.py<br>
+📄 main.py<br>
 📄 sensors_ds18b20.py<br>
 📄 time_zh.py<br>
+📄 tankReeds.py<br>
 📁 cloud/<br>
 	📄 cloud/client.py<br>
 	📄 cloud/callbacks.py<br>
@@ -344,12 +345,17 @@ def get_active_window_minutes():
 # - startHour / endHour (Time) define active day window for triggering
 # - cycles_blink_task reads duration + window via thread-safe getters
 
+
 import logging
 import _thread
+from machine import I2C, Pin
+import tankReeds
 from config import (
     DS18B20_PIN,
     TIME_UPDATE_PERIOD_S,
     LED_CYCLE_POLL_MS,
+    I2C_SCL_PIN,
+    I2C_SDA_PIN,
 )
 from hw.led import make_led, set_led
 from cloud.client import create_client
@@ -369,6 +375,7 @@ from state.runtime import (
     get_active_window_minutes,
 )
 
+
 def main():
     # Basic logging setup
     logging.basicConfig(
@@ -379,6 +386,13 @@ def main():
 
     # --- Hardware setup (LED as actuator placeholder) ---
     led_pin = make_led()  # respects ACTIVE_LOW/LED_PIN from config
+    
+    
+    # I2C BUS ERZEUGEN
+    i2c = I2C(0, scl=Pin(I2C_SCL_PIN), sda=Pin(I2C_SDA_PIN), freq=100000)
+
+    # Tank‑Level Modul damit verbinden
+    tankReeds.init(i2c)
 
     # --- Cloud client & variables registration ---
     # Expect the following variables to exist in Arduino Cloud:
@@ -404,6 +418,7 @@ def main():
         # Read-only mirrors (strings like "0,15,30,45" when the effective set changes):
         'cycles_circuit_1_effective': {},
         'cycles_circuit_2_effective': {},
+        'tankLevel': {},
     })
 
     # --- Sensors manager (DS18B20) ---
@@ -427,8 +442,8 @@ def main():
             get_air_temp,                                 # temperature getter
             lambda t: seconds_for_temp('c1', t),          # selector for circuit 1
             client, 'cycles_circuit_1_effective',
-            get_c1_duration_s,                            # NEW: pulse duration (seconds)
-            get_active_window_minutes,                    # NEW: active window (start,end)
+            get_c1_duration_s,
+            get_active_window_minutes,
         )
     )
 
@@ -451,7 +466,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 ```
 #### sensors_ds18b20.py
 
@@ -577,12 +591,23 @@ class DS18B20Manager:
 
 import time
 from time_zh import localtime_ch
+from tankReeds import get_fill_percent
+
 
 def _fmt_time_str(t_local, tz_str):
     # t_local: (Y, M, D, hh, mm, ss, wd, yd)
-    Y, M, D, hh, mm, ss = t_local[0], t_local[1], t_local[2], t_local[3], t_local[4], t_local[5]
-    # ISO-like "YYYY-MM-DD hh:mm:ss TZ"
-    return "{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d} {}".format(Y, M, D, hh, mm, ss, tz_str)
+    Y, M, D, hh, mm, ss = (
+        t_local[0],
+        t_local[1],
+        t_local[2],
+        t_local[3],
+        t_local[4],
+        t_local[5],
+    )
+    return "{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d} {}".format(
+        Y, M, D, hh, mm, ss, tz_str
+    )
+
 
 def time_and_temp_task(client, ds18_manager, period_s=1):
     """
@@ -590,10 +615,11 @@ def time_and_temp_task(client, ds18_manager, period_s=1):
       - time_zh: local date-time string with TZ (CET/CEST)
       - {name}_temp: per-sensor temp readings via DS18B20Manager.read_and_publish_once()
     """
-    # First immediate publish to avoid dashboard silence on boot
+
+    # First immediate publish
     try:
         t_local, _, tz = localtime_ch()
-        client['time_zh'] = _fmt_time_str(t_local, tz)
+        client["time_zh"] = _fmt_time_str(t_local, tz)
     except Exception:
         pass
 
@@ -601,16 +627,20 @@ def time_and_temp_task(client, ds18_manager, period_s=1):
         try:
             # 1) Local time (Europe/Zurich)
             t_local, _, tz = localtime_ch()
-            client['time_zh'] = _fmt_time_str(t_local, tz)
+            client["time_zh"] = _fmt_time_str(t_local, tz)
 
-            # 2) DS18B20 readings (also updates runtime air temperature state)
+            # 2) DS18B20 readings
             ds18_manager.read_and_publish_once()
+
+            # 3) TankLevel readings
+            lvl = get_fill_percent()
+            if lvl is not None and lvl >= 0:
+                client["tankLevel"] = lvl
 
         except Exception as e:
             print("time_and_temp_task error:", e)
 
         time.sleep(period_s if period_s and period_s > 0 else 1)
-
 ```
 
 ####  tasks/cycles_led.py
@@ -997,6 +1027,65 @@ def set_led(pin, on: bool):
     else:
         pin.value(1 if on else 0)
 
+```
+
+#### tankReeds.py
+```python
+# tankReeds.py
+# Water level sensing using PCF8574T
+
+from config import PCF8574_ADDR
+
+_i2c = None
+_last_valid = None
+
+
+def init(i2c):
+    """Initialize module with shared I2C bus."""
+    global _i2c
+    _i2c = i2c
+
+
+def _read_raw():
+    """Read raw byte from PCF8574T. Returns None on error."""
+    global _i2c
+    if _i2c is None:
+        return None
+    try:
+        return _i2c.readfrom(PCF8574_ADDR, 1)[0]
+    except Exception:
+        return None
+
+
+def get_closed_reeds():
+    """Return list of reed channels (0..5) that are closed; None on read error."""
+    raw = _read_raw()
+    if raw is None:
+        return None
+    return [pin for pin in range(6) if ((raw >> pin) & 1) == 0]
+
+
+def get_fill_percent():
+    """
+    Convert closed reed channels to tank fill percent (0..100).
+    Returns last valid value if no valid reading is available.
+    -1 means: do not publish.
+    """
+    global _last_valid
+
+    reeds = get_closed_reeds()
+    if reeds is None:
+        return _last_valid
+
+    if len(reeds) == 0:
+        return _last_valid
+
+    level = sum(reeds) / len(reeds)
+    percent = (level / 5) * 100
+    rounded = int(round(percent / 10) * 10)
+
+    _last_valid = rounded
+    return rounded
 ```
 
 ### Arduino Cloud Setup
