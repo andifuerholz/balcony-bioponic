@@ -894,7 +894,26 @@ def seconds_for_temp(c_key: str, temp_c):
                 break
         return set(active)
 
-# ---------- New: Cloud handlers for duration & time window ----------
+# ---------- loud handlers for duration & time window ----------
+
+import time
+
+def _timestamp_to_minutes_since_midnight(ts_utc):
+    """
+    Convert POSIX timestamp (UTC) to local CH time (CET/CEST)
+    and return minutes since midnight.
+    """
+    try:
+        # In lokale Zeit wandeln (MicroPython kennt Zeitzone via time_zh)
+        lt = time.localtime(int(ts_utc))
+
+        hour = lt[3]
+        minute = lt[4]
+        return hour * 60 + minute
+    except Exception as e:
+        print("timestamp conversion error:", e)
+        return None
+
 
 def _parse_time_var_to_minutes(value):
     """
@@ -946,35 +965,45 @@ def onC1DurationChange(client, value):
     except Exception as e:
         print("onC1DurationChange error:", e)
 
+
 def onStartHourChange(client, value):
-    """
-    on_write for 'startHour' (Arduino Cloud Time).
-    """
     try:
+        print("[DEBUG] raw startHour payload:", value)
+
         from state.runtime import get_active_window_minutes, set_active_window_minutes
-        start_m = _parse_time_var_to_minutes(value)
-        if start_m is None:
-            print("onStartHourChange: invalid time payload:", value)
+
+        # POSIX-Zeitstempel in Minuten überführen
+        m = _timestamp_to_minutes_since_midnight(value)
+        if m is None:
+            print("onStartHourChange: invalid timestamp:", value)
             return
+
+        # Fenster aktualisieren
         _, end_m = get_active_window_minutes()
-        set_active_window_minutes(start_m, end_m)
-        print(f"[window] start set to {start_m//60:02d}:{start_m%60:02d}")
+        set_active_window_minutes(m, end_m)
+
+        print(f"[window] start set to {m//60:02d}:{m%60:02d}")
+
     except Exception as e:
         print("onStartHourChange error:", e)
+        
 
 def onEndHourChange(client, value):
-    """
-    on_write for 'endHour' (Arduino Cloud Time).
-    """
     try:
+        print("[DEBUG] raw endHour payload:", value)
+
         from state.runtime import get_active_window_minutes, set_active_window_minutes
-        end_m = _parse_time_var_to_minutes(value)
-        if end_m is None:
-            print("onEndHourChange: invalid time payload:", value)
+
+        m = _timestamp_to_minutes_since_midnight(value)
+        if m is None:
+            print("onEndHourChange: invalid timestamp:", value)
             return
+
         start_m, _ = get_active_window_minutes()
-        set_active_window_minutes(start_m, end_m)
-        print(f"[window] end set to {end_m//60:02d}:{end_m%60:02d}")
+        set_active_window_minutes(start_m, m)
+
+        print(f"[window] end set to {m//60:02d}:{m%60:02d}")
+
     except Exception as e:
         print("onEndHourChange error:", e)
 
