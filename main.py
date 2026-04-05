@@ -39,6 +39,8 @@ from state.runtime import (
     get_active_window_minutes,
 )
 
+from tasks.lcd_task import lcd_task
+from hw.lcd1602 import LCD1602, SN3193
 
 def main():
     # Basic logging setup
@@ -47,6 +49,7 @@ def main():
         format="%(asctime)s.%(msecs)03d %(message)s",
         level=logging.INFO,
     )
+    
 
     # --- Hardware setup (LED as actuator placeholder) ---
     led_pin = make_led()  # respects ACTIVE_LOW/LED_PIN from config
@@ -57,6 +60,14 @@ def main():
 
     # Tank‑Level Modul damit verbinden
     tankReeds.init(i2c)
+    
+    # --- LCD local display (time only) ---
+    lcd = LCD1602(16, 2)
+    backlight = SN3193()
+    backlight.set_brightness(20)
+
+    # Background LCD thread
+    _thread.start_new_thread(lcd_task, (lcd,))
 
     # --- Cloud client & variables registration ---
     # Expect the following variables to exist in Arduino Cloud:
@@ -124,10 +135,12 @@ def main():
             None,                                         # window -> always active
         )
     )
+    
+    
 
     # --- Blocking cloud loop ---
     client.start()
+    
 
 if __name__ == "__main__":
     main()
-
