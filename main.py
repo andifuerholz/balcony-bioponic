@@ -61,9 +61,9 @@ def main():
     # Tank‑Level Modul damit verbinden
     tankReeds.init(i2c)
     
-    # --- LCD local display (time only) ---
-    lcd = LCD1602(16, 2)
-    backlight = SN3193()
+    # --- LCD local display ----
+    lcd = LCD1602(i2c, 16, 2)
+    backlight = SN3193(i2c)
     backlight.set_brightness(20)
 
     # Background LCD thread
