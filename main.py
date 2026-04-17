@@ -32,7 +32,9 @@ from cloud.callbacks import (
 )
 from tasks.time_task import time_and_temp_task
 from tasks.cycles_led import cycles_blink_task
-from sensors_ds18b20 import DS18B20Manager
+#from sensors_ds18b20 import DS18B20Manager
+from hw.sensors_sht20 import SHT20Manager
+
 from state.runtime import (
     get_air_temp,
     get_c1_duration_s,
@@ -65,10 +67,10 @@ def main():
     lcd = LCD1602(i2c, 16, 2)
     backlight = SN3193(i2c)
     backlight.set_brightness(20)
-
+    
     # Background LCD thread
     _thread.start_new_thread(lcd_task, (lcd,))
-
+    
     # --- Cloud client & variables registration ---
     # Expect the following variables to exist in Arduino Cloud:
     # - led_state (bool; R/W)
@@ -85,6 +87,7 @@ def main():
         'led_state': {'on_write': lambda c, v: onLedChange(c, set_led, led_pin, v)},
         'time_zh': {},
         'air_temp': {},
+        'air_humidity': {},
         'cycles_circuit_1': {'on_write': onCycles1Change},
         'cycles_circuit_2': {'on_write': onCycles2Change},
         'switchDuration_circuit_1': {'on_write': onC1DurationChange},  # NEW
@@ -98,7 +101,10 @@ def main():
 
     # --- Sensors manager (DS18B20) ---
     # Publishes named temps as {name}_temp (e.g., air_temp) and updates runtime state.
-    manager = DS18B20Manager(client, pin=DS18B20_PIN)
+    #manager = DS18B20Manager(client, pin=DS18B20_PIN)
+    
+    # --- Sensors manager (SHT20 over I2C) ---
+    manager = SHT20Manager(client, i2c)
 
     # --- Background tasks ---
     # 1) Low-frequency combined task: local time string + temperature readings
