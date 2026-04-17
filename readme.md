@@ -45,8 +45,8 @@ The bioponics system is built from a set of components aiming for a balcony-scal
 - **One air pump** which supplies oxygen to keep the microbial communities active so they can efficiently break down organic nutrients
 - **One Arduino Nano ESP32 S3**, serving as the central microcontroller for automation and pump control.
 - **Additional electronic components**, including relays, voltage converters, a power supply, and supporting circuitry.
-- **One outdoor temperature sensor (DS18B20)** to measure ambient temperature.
-- **One water temperature sensor (DS18B20)** to monitor the nutrient solution temperature.
+- **SH20 temperature/humidity sensor (I2C)** to measure ambient temperature and humidity.
+- **SH20 temperature sensor (I2C) (DS18B20)** to monitor the nutrient solution temperature.
 - **A custom-built water level sensing system**, consisting of six reed switches positioned at different heights.
 - **An auxiliary tank with its own pump** to refill or stabilize the main reservoir when required.
 
@@ -90,7 +90,6 @@ The system uses several components, libraries and external services:
 📄 config.py<br>
 📄 secrets.py<br>
 📄 main.py<br>
-📄 sensors_ds18b20.py<br>
 📄 time_zh.py<br>
 📄 tankReeds.py<br>
 📁 cloud/<br>
@@ -102,6 +101,7 @@ The system uses several components, libraries and external services:
 📁 hw/<br>
 	📄 hw/led.py<br>
 	📄 hw/pins.py<br>
+	📄 hw/sensors_sht20.py<br>
 	lcd1602.py<br>
 📁 state/<br>
 	📄 state/runtime.py<br>
@@ -369,7 +369,9 @@ from cloud.callbacks import (
 )
 from tasks.time_task import time_and_temp_task
 from tasks.cycles_led import cycles_blink_task
-from sensors_ds18b20 import DS18B20Manager
+#from sensors_ds18b20 import DS18B20Manager
+from hw.sensors_sht20 import SHT20Manager
+
 from state.runtime import (
     get_air_temp,
     get_c1_duration_s,
@@ -402,10 +404,10 @@ def main():
     lcd = LCD1602(i2c, 16, 2)
     backlight = SN3193(i2c)
     backlight.set_brightness(20)
-
+    
     # Background LCD thread
     _thread.start_new_thread(lcd_task, (lcd,))
-
+    
     # --- Cloud client & variables registration ---
     # Expect the following variables to exist in Arduino Cloud:
     # - led_state (bool; R/W)
@@ -422,6 +424,7 @@ def main():
         'led_state': {'on_write': lambda c, v: onLedChange(c, set_led, led_pin, v)},
         'time_zh': {},
         'air_temp': {},
+        'air_humidity': {},
         'cycles_circuit_1': {'on_write': onCycles1Change},
         'cycles_circuit_2': {'on_write': onCycles2Change},
         'switchDuration_circuit_1': {'on_write': onC1DurationChange},  # NEW
@@ -435,7 +438,10 @@ def main():
 
     # --- Sensors manager (DS18B20) ---
     # Publishes named temps as {name}_temp (e.g., air_temp) and updates runtime state.
-    manager = DS18B20Manager(client, pin=DS18B20_PIN)
+    #manager = DS18B20Manager(client, pin=DS18B20_PIN)
+    
+    # --- Sensors manager (SHT20 over I2C) ---
+    manager = SHT20Manager(client, i2c)
 
     # --- Background tasks ---
     # 1) Low-frequency combined task: local time string + temperature readings
@@ -482,121 +488,85 @@ def main():
 if __name__ == "__main__":
     main()
 
+
 ```
-#### sensors_ds18b20.py
+#### hw/sensors_sht20.py
 
 ```python
-# sensors_ds18b20.py
-# Purpose: Read one or multiple DS18B20 sensors on a OneWire bus and publish
-# named values to the Arduino IoT Cloud as individual variables (name_temp).
-# Adds read_and_publish_once() for coordinated low-frequency tasks.
+# sensors_sht20.py
+# Purpose:
+# Read temperature and humidity from an SHT20 sensor over I2C
+# and publish values to Arduino IoT Cloud.
+#
+# Published variables:
+# - air_temp (°C)
+# - air_humidity (% rF)
 
-from machine import Pin
-import onewire, ds18x20, time
-from config import SENSOR_MAP, TEMP_MIN, TEMP_MAX, OFFSETS
+from machine import I2C
+import time
 
-SENSOR_PIN_DEFAULT = 4  # DQ on GPIO4, ~4.7–5 kΩ pull-up to 3V3
+SHT20_ADDR = 0x40
 
-def hex_rom(b):
-    """Return hex-string representation of a ROM ID (bytes)."""
-    return ':'.join(f'{x:02X}' for x in b)
+# Commands (no hold master)
+CMD_TEMP = 0xF3
+CMD_HUM  = 0xF5
 
-class DS18B20Manager:
+
+class SHT20Manager:
     """
-    Manage multiple DS18B20 sensors on a OneWire bus and publish named readings
-    to the Arduino IoT Cloud as {name}_temp variables.
+    Simple manager for a single SHT20 sensor on an I2C bus.
+    Interface is compatible with the existing DS18B20Manager usage.
     """
-    def __init__(self, client, pin=SENSOR_PIN_DEFAULT, interval_s=2):
+
+    def __init__(self, client, i2c: I2C):
         self.client = client
-        self.interval_s = interval_s
-        self.ow = onewire.OneWire(Pin(pin))
-        self.ds = ds18x20.DS18X20(self.ow)
+        self.i2c = i2c
 
-        # Scan at init and store ROMs as immutable bytes
-        scan = self.ds.scan() or []
-        self.roms = [bytes(r) for r in scan]
-        if not self.roms:
-            print("⚠️ No DS18B20 sensors found.")
-        else:
-            print("DS18B20 ROMs (hex):", [hex_rom(r) for r in self.roms])
+    # --- Low-level raw reads ----------------------------------------------
 
-    def _read_all(self):
-        """
-        Convert all sensors, read them, filter implausible raw values,
-        and apply per-sensor offsets. Unknown sensors are returned with HEX keys.
-        """
-        vals = {}
-        if not self.roms:
-            return vals
-        try:
-            self.ds.convert_temp()
-        except Exception as e:
-            print("convert_temp error:", e)
-            return vals
+    def _read_temperature(self):
+        self.i2c.writeto(SHT20_ADDR, bytes([CMD_TEMP]))
+        time.sleep_ms(100)
+        raw = self.i2c.readfrom(SHT20_ADDR, 2)
+        val = (raw[0] << 8) | raw[1]
+        val &= 0xFFFC  # mask status bits
+        return -46.85 + 175.72 * val / 65536.0
 
-        # 12-bit resolution → 750 ms conversion time
-        time.sleep_ms(750)
+    def _read_humidity(self):
+        self.i2c.writeto(SHT20_ADDR, bytes([CMD_HUM]))
+        time.sleep_ms(100)
+        raw = self.i2c.readfrom(SHT20_ADDR, 2)
+        val = (raw[0] << 8) | raw[1]
+        val &= 0xFFFC  # mask status bits
+        return -6.0 + 125.0 * val / 65536.0
 
-        for rom in self.roms:
-            try:
-                t = self.ds.read_temp(rom)
-            except Exception as e:
-                print("read_temp error:", e)
-                continue
-
-            # Raw plausibility check
-            if t is None or not (TEMP_MIN <= t <= TEMP_MAX):
-                continue
-
-            name = SENSOR_MAP.get(rom)  # bytes key expected
-            if name:
-                t = t + OFFSETS.get(name, 0.0)
-                vals[name] = round(t, 2)
-            else:
-                # Unknown sensor: log with hex key (not published in loop/once)
-                vals[hex_rom(rom)] = round(t, 2)
-        return vals
+    # --- Public API -------------------------------------------------------
 
     def read_and_publish_once(self):
-        """Perform one full DS18B20 read cycle and publish named sensors as {name}_temp."""
-        vals = self._read_all()
-        if not vals:
+        """
+        Read temperature + humidity once and publish to the cloud.
+        Also updates runtime temperature state.
+        """
+        try:
+            temp = round(self._read_temperature(), 2)
+            hum  = round(self._read_humidity(), 2)
+        except Exception as e:
+            print("SHT20 read error:", e)
             return
-        for name, value in vals.items():
-            if not isinstance(name, str):
-                continue  # skip hex keys (unknown sensors)
-            var_name = f"{name}_temp"
-            try:
-                self.client[var_name] = value
-            except Exception as e:
-                print(f"Publish {var_name} error:", e)
 
-            # Update runtime temperature state for 'air'
-            if name == 'air':
-                try:
-                    from state.runtime import set_air_temp
-                    set_air_temp(value)
-                except Exception:
-                    pass
+        # Publish to Arduino Cloud
+        try:
+            self.client["air_temp"] = temp
+            self.client["air_humidity"] = hum
+        except Exception as e:
+            print("SHT20 publish error:", e)
 
-    def loop(self):
-        """
-        Endless loop (legacy): read values and publish to {name}_temp.
-        Kept for compatibility; not used in the combined time+temp approach.
-        """
-        while True:
-            vals = self._read_all()
-            if vals:
-                for name, value in vals.items():
-                    if not isinstance(name, str):
-                        continue
-                    var_name = f"{name}_temp"
-                    try:
-                        self.client[var_name] = value
-                    except Exception as e:
-                        print(f"Publish {var_name} error:", e)
-            time.sleep(self.interval_s)
-
+        # Update runtime state for watering logic
+        try:
+            from state.runtime import set_air_temp
+            set_air_temp(temp)
+        except Exception:
+            pass
 ```
 #### tasks/time_task.py
 ```python
@@ -1336,54 +1306,6 @@ Core parts of the system were used for two years — with a simple timer — bef
 
 #### Connecting a DS18B20 Temperature Sensor to the Arduino Nano ESP32
 
-#### Getting ROMs
-```python
-import onewire, ds18x20
-from machine import Pin
-ow = onewire.OneWire(Pin(4))     # Bus-Pin
-ds = ds18x20.DS18X20(ow)
-print("Gefundene ROMs:", ds.scan())
-```
-
-
-The **DS18B20** is a digital temperature sensor that communicates via the **OneWire bus**. It requires only one data pin on the Arduino Nano ESP32 (ESP32‑S3).
-
-#### 🔌 Wiring Overview
-
-| DS18B20 Pin | Arduino Nano ESP32 Pin | Description |
-|-------------|-------------------------|-------------|
-| **VDD**     | **3V3**                 | Power supply |
-| **GND**     | **GND**                 | Ground |
-| **DQ**      | **GPIO 4 / A3 ~D20**              | OneWire data line |
-
-##### 📐 Pull‑Up Resistor
-
-Add a **4.7 kΩ resistor between DQ and 3V3**.
-
-The DS18B20 requires this pull‑up for a stable HIGH level on the OneWire bus.  
-For very short wires (<10 cm, 1 sensor) it may work temporarily without it,  
-but stable operation requires the resistor.
-
-### 🧪 Minimal MicroPython Test Script
-
-```python
-from machine import Pin
-import onewire, ds18x20, time
-
-SENSOR_PIN = 4
-
-ow = onewire.OneWire(Pin(SENSOR_PIN))
-ds = ds18x20.DS18X20(ow)
-
-roms = ds.scan()
-print("Detected sensors:", roms)
-
-while True:
-    ds.convert_temp()
-    time.sleep_ms(750)
-    for r in roms:
-        print("Temperature:", ds.read_temp(r), "°C")
-    time.sleep(5)
 
 ```
 ### Water Level Sensing Subsystem (PCF8574T + Reed Switches)
