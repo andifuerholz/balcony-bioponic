@@ -51,6 +51,25 @@ def get_c1_duration_ms() -> int:
     """Convenience: circuit 1 duration in milliseconds."""
     with _c1_lock:
         return int(_c1_duration_s) * 1000
+    
+# --- Circuit 2: watering pulse duration (seconds) -----------------------------
+
+_c2_duration_s = DEFAULT_C1_SWITCH_DURATION_S   # gleicher Default ok
+_c2_lock = _thread.allocate_lock()
+
+def set_c2_duration_s(v_s: int):
+    global _c2_duration_s
+    try:
+        v = int(v_s)
+    except Exception:
+        return
+    v = max(MIN_SWITCH_DURATION_S, min(v, MAX_SWITCH_DURATION_S))
+    with _c2_lock:
+        _c2_duration_s = v
+
+def get_c2_duration_s() -> int:
+    with _c2_lock:
+        return int(_c2_duration_s)
 
 # --- Active day window (start/end minutes after midnight) ---------------------
 # Stored as minutes since midnight [0..1439]. Default 07:00..21:00.
