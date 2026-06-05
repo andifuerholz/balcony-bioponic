@@ -526,7 +526,7 @@ def main():
             lambda t: seconds_for_temp('c2', t),
             client, 'cycles_circuit_2_effective',
             get_c2_duration_s,
-            None,
+            get_active_window_minutes,
         )
     )
     
