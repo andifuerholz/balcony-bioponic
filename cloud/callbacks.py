@@ -83,14 +83,7 @@ def _update_circuit_from_text(c_key: str, text: str):
             _state[c_key]['profiles'] = None
             _state[c_key]['secs'] = parse_cycle_seconds(text)
             print(f"[{c_key}] legacy seconds:", sorted(_state[c_key]['secs']))
-
-def onLedChange(client, set_led_fn, led_pin, value):
-    """on_write for 'led_state'."""
-    try:
-        set_led_fn(led_pin, bool(value))
-        print("LED ON!" if value else "LED OFF!")
-    except Exception as e:
-        print("onLedChange error:", e)
+            
 
 def onCycles1Change(client, value):
     """on_write for 'cycles_circuit_1' (string)."""
@@ -191,6 +184,15 @@ def onC1DurationChange(client, value):
         print(f"[c1] switch duration set to {int(value)} s")
     except Exception as e:
         print("onC1DurationChange error:", e)
+        
+
+def onC2DurationChange(client, value):
+    try:
+        from state.runtime import set_c2_duration_s
+        set_c2_duration_s(int(value))
+        print(f"[c2] switch duration set to {int(value)} s")
+    except Exception as e:
+        print("onC2DurationChange error:", e)
 
 
 def onStartHourChange(client, value):
