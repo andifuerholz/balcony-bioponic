@@ -1,5 +1,6 @@
 # config.py
 # Central configuration for pins, timing, and DS18B20 sensor mapping/calibration.
+# All comments are in English as requested.
 
 # ---------------------------------
 # Hardware pins & timing parameters
@@ -7,6 +8,12 @@
 LED_PIN = 48
 ACTIVE_LOW = False
 DS18B20_PIN = 4
+
+# --- Relays / Actuators ---
+RELAY1_PIN = 38   # D11
+RELAY2_PIN = 18   # D09
+
+RELAY_ACTIVE_LOW = False  # falls Relais invertiert sind → True setzen
 
 
 # I2C Pin setting
