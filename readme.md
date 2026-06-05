@@ -208,6 +208,20 @@ LED_PIN = 48
 ACTIVE_LOW = False
 DS18B20_PIN = 4
 
+# --- Relays / Actuators ---
+RELAY1_PIN = 38   # D11
+RELAY2_PIN = 18   # D09
+
+RELAY_ACTIVE_LOW = False  # falls Relais invertiert sind → True setzen
+
+
+# I2C Pin setting
+I2C_SCL_PIN = 5
+I2C_SDA_PIN = 6
+
+# I2C Addresses
+PCF8574_ADDR = 0x20
+
 # Task periods / polling (seconds or milliseconds as noted)
 TIME_UPDATE_PERIOD_S = 1
 LED_CYCLE_POLL_MS = 100
@@ -247,6 +261,7 @@ OFFSETS = {
 # Values outside this range will be discarded.
 TEMP_MIN = -20.0
 TEMP_MAX = 60.0
+
 
 ```
 ### state/runtime.py
@@ -304,6 +319,25 @@ def get_c1_duration_ms() -> int:
     """Convenience: circuit 1 duration in milliseconds."""
     with _c1_lock:
         return int(_c1_duration_s) * 1000
+    
+# --- Circuit 2: watering pulse duration (seconds) -----------------------------
+
+_c2_duration_s = DEFAULT_C1_SWITCH_DURATION_S   # gleicher Default ok
+_c2_lock = _thread.allocate_lock()
+
+def set_c2_duration_s(v_s: int):
+    global _c2_duration_s
+    try:
+        v = int(v_s)
+    except Exception:
+        return
+    v = max(MIN_SWITCH_DURATION_S, min(v, MAX_SWITCH_DURATION_S))
+    with _c2_lock:
+        _c2_duration_s = v
+
+def get_c2_duration_s() -> int:
+    with _c2_lock:
+        return int(_c2_duration_s)
 
 # --- Active day window (start/end minutes after midnight) ---------------------
 # Stored as minutes since midnight [0..1439]. Default 07:00..21:00.
@@ -330,6 +364,7 @@ def get_active_window_minutes():
     """Return (start_minutes, end_minutes), both in [0..1439]."""
     with _win_lock:
         return _start_minutes, _end_minutes
+
 ```
 
 #### `main.py`
@@ -338,13 +373,12 @@ def get_active_window_minutes():
 # main.py
 # Purpose:
 # Initialize Arduino IoT Cloud client, register variables/callbacks,
-# start background tasks (combined local time + DS18B20 readings, cycle-based LED),
+# start background tasks (combined local time + DS18B20 readings, cycle-based actuator control),
 # and run the client loop. Wi‑Fi and NTP are handled in boot.py.
 #
 # Enhancements:
 # - switchDuration_circuit_1 (seconds) from cloud controls pulse length
 # - startHour / endHour (Time) define active day window for triggering
-# - cycles_blink_task reads duration + window via thread-safe getters
 
 
 import logging
@@ -357,24 +391,27 @@ from config import (
     LED_CYCLE_POLL_MS,
     I2C_SCL_PIN,
     I2C_SDA_PIN,
+    RELAY1_PIN,
+    RELAY2_PIN
 )
-from hw.led import make_led, set_led
+
+from hw.relay import make_relay, set_relay
 from cloud.client import create_client
 from cloud.callbacks import (
-    onLedChange,
     onCycles1Change, onCycles2Change,
     seconds_for_temp,
     onC1DurationChange,
+    onC2DurationChange,
     onStartHourChange, onEndHourChange,
 )
 from tasks.time_task import time_and_temp_task
 from tasks.cycles_led import cycles_blink_task
-#from sensors_ds18b20 import DS18B20Manager
 from hw.sensors_sht20 import SHT20Manager
 
 from state.runtime import (
     get_air_temp,
     get_c1_duration_s,
+    get_c2_duration_s,
     get_active_window_minutes,
 )
 
@@ -390,23 +427,41 @@ def main():
     )
     
 
-    # --- Hardware setup (LED as actuator placeholder) ---
-    led_pin = make_led()  # respects ACTIVE_LOW/LED_PIN from config
-    
+    # --- Hardware setup ---
+    relay1 = make_relay(RELAY1_PIN)
+    relay2 = make_relay(RELAY2_PIN)
+
     
     # I2C BUS ERZEUGEN
     i2c = I2C(0, scl=Pin(I2C_SCL_PIN), sda=Pin(I2C_SDA_PIN), freq=100000)
+    
 
     # Tank‑Level Modul damit verbinden
     tankReeds.init(i2c)
     
+
     # --- LCD local display ----
-    lcd = LCD1602(i2c, 16, 2)
-    backlight = SN3193(i2c)
-    backlight.set_brightness(20)
-    
-    # Background LCD thread
-    _thread.start_new_thread(lcd_task, (lcd,))
+    devices = i2c.scan()
+    print("I2C devices:", [hex(d) for d in devices])
+
+    lcd = None
+
+    if 0x3e in devices:
+        try:
+            lcd = LCD1602(i2c, 16, 2)
+            backlight = SN3193(i2c)
+            backlight.set_brightness(20)
+
+            # Background LCD thread
+            _thread.start_new_thread(lcd_task, (lcd,))
+            print("LCD initialized")
+        except Exception as e:
+            print("LCD init failed:", e)
+    else:
+        print("LCD not found on I2C bus")
+        
+        # Background LCD thread
+        _thread.start_new_thread(lcd_task, (lcd,))
     
     # --- Cloud client & variables registration ---
     # Expect the following variables to exist in Arduino Cloud:
@@ -421,24 +476,20 @@ def main():
     # - cycles_circuit_1_effective (string; R/O) → comma-separated active seconds
     # - cycles_circuit_2_effective (string; R/O) → comma-separated active seconds
     client = create_client({
-        'led_state': {'on_write': lambda c, v: onLedChange(c, set_led, led_pin, v)},
         'time_zh': {},
         'air_temp': {},
         'air_humidity': {},
         'cycles_circuit_1': {'on_write': onCycles1Change},
         'cycles_circuit_2': {'on_write': onCycles2Change},
-        'switchDuration_circuit_1': {'on_write': onC1DurationChange},  # NEW
-        'startHour': {'on_write': onStartHourChange},                   # NEW
-        'endHour':   {'on_write': onEndHourChange},                     # NEW
+        'switchDuration_circuit_1': {'on_write': onC1DurationChange},
+        'switchDuration_circuit_2': {'on_write': onC2DurationChange},
+        'startHour': {'on_write': onStartHourChange},
+        'endHour':   {'on_write': onEndHourChange},
         # Read-only mirrors (strings like "0,15,30,45" when the effective set changes):
         'cycles_circuit_1_effective': {},
         'cycles_circuit_2_effective': {},
         'tankLevel': {},
     })
-
-    # --- Sensors manager (DS18B20) ---
-    # Publishes named temps as {name}_temp (e.g., air_temp) and updates runtime state.
-    #manager = DS18B20Manager(client, pin=DS18B20_PIN)
     
     # --- Sensors manager (SHT20 over I2C) ---
     manager = SHT20Manager(client, i2c)
@@ -455,10 +506,10 @@ def main():
     _thread.start_new_thread(
         cycles_blink_task,
         (
-            set_led, led_pin,
+            set_relay, relay1,
             LED_CYCLE_POLL_MS,
-            get_air_temp,                                 # temperature getter
-            lambda t: seconds_for_temp('c1', t),          # selector for circuit 1
+            get_air_temp,
+            lambda t: seconds_for_temp('c1', t),
             client, 'cycles_circuit_1_effective',
             get_c1_duration_s,
             get_active_window_minutes,
@@ -469,13 +520,13 @@ def main():
     _thread.start_new_thread(
         cycles_blink_task,
         (
-            set_led, led_pin,
+            set_relay, relay2,
             LED_CYCLE_POLL_MS,
-            get_air_temp,                                 # temperature getter
-            lambda t: seconds_for_temp('c2', t),          # selector for circuit 2
+            get_air_temp,
+            lambda t: seconds_for_temp('c2', t),
             client, 'cycles_circuit_2_effective',
-            None,                                         # duration -> default
-            None,                                         # window -> always active
+            get_c2_duration_s,
+            None,
         )
     )
     
@@ -487,7 +538,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
 ```
 #### hw/sensors_sht20.py
@@ -842,14 +892,7 @@ def _update_circuit_from_text(c_key: str, text: str):
             _state[c_key]['profiles'] = None
             _state[c_key]['secs'] = parse_cycle_seconds(text)
             print(f"[{c_key}] legacy seconds:", sorted(_state[c_key]['secs']))
-
-def onLedChange(client, set_led_fn, led_pin, value):
-    """on_write for 'led_state'."""
-    try:
-        set_led_fn(led_pin, bool(value))
-        print("LED ON!" if value else "LED OFF!")
-    except Exception as e:
-        print("onLedChange error:", e)
+            
 
 def onCycles1Change(client, value):
     """on_write for 'cycles_circuit_1' (string)."""
@@ -950,6 +993,15 @@ def onC1DurationChange(client, value):
         print(f"[c1] switch duration set to {int(value)} s")
     except Exception as e:
         print("onC1DurationChange error:", e)
+        
+
+def onC2DurationChange(client, value):
+    try:
+        from state.runtime import set_c2_duration_s
+        set_c2_duration_s(int(value))
+        print(f"[c2] switch duration set to {int(value)} s")
+    except Exception as e:
+        print("onC2DurationChange error:", e)
 
 
 def onStartHourChange(client, value):
@@ -1038,6 +1090,31 @@ def make_led():
 def set_led(pin, on: bool):
     """Set LED ON/OFF respecting polarity."""
     if ACTIVE_LOW:
+        pin.value(0 if on else 1)
+    else:
+        pin.value(1 if on else 0)
+
+```
+
+#### hw/relay.py
+```python
+
+# hw/relay.py
+from machine import Pin
+from config import RELAY_ACTIVE_LOW
+
+def make_relay(pin_number: int):
+    """Create relay pin, OFF by default."""
+    p = Pin(pin_number, Pin.OUT)
+    if RELAY_ACTIVE_LOW:
+        p.value(1)  # OFF
+    else:
+        p.value(0)  # OFF
+    return p
+
+def set_relay(pin, on: bool):
+    """Switch relay ON/OFF respecting polarity."""
+    if RELAY_ACTIVE_LOW:
         pin.value(0 if on else 1)
     else:
         pin.value(1 if on else 0)
