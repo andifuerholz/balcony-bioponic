@@ -392,7 +392,8 @@ from config import (
     I2C_SCL_PIN,
     I2C_SDA_PIN,
     RELAY1_PIN,
-    RELAY2_PIN
+    RELAY2_PIN,
+    RELAY3_PIN
 )
 
 from hw.relay import make_relay, set_relay
@@ -430,6 +431,7 @@ def main():
     # --- Hardware setup ---
     relay1 = make_relay(RELAY1_PIN)
     relay2 = make_relay(RELAY2_PIN)
+    relay3 = make_relay(RELAY3_PIN)
 
     
     # I2C BUS ERZEUGEN
@@ -481,8 +483,10 @@ def main():
         'air_humidity': {},
         'cycles_circuit_1': {'on_write': onCycles1Change},
         'cycles_circuit_2': {'on_write': onCycles2Change},
+        'cycles_circuit_3': {'on_write': onCycles2Change},
         'switchDuration_circuit_1': {'on_write': onC1DurationChange},
         'switchDuration_circuit_2': {'on_write': onC2DurationChange},
+        'switchDuration_circuit_3': {'on_write': onC2DurationChange},
         'startHour': {'on_write': onStartHourChange},
         'endHour':   {'on_write': onEndHourChange},
         # Read-only mirrors (strings like "0,15,30,45" when the effective set changes):
@@ -516,7 +520,7 @@ def main():
         )
     )
 
-    # Circuit 2: keep existing behavior (no window/duration override yet)
+    # Circuit 2: temperature-driven schedule *and* cloud-driven pulse duration + active window
     _thread.start_new_thread(
         cycles_blink_task,
         (
@@ -530,6 +534,23 @@ def main():
         )
     )
     
+    # Circuit 3 (air pump): temperature-driven schedule *and* cloud-driven pulse duration + active window
+    _thread.start_new_thread(
+    cycles_blink_task,
+        (
+            set_relay, relay3,
+            LED_CYCLE_POLL_MS,
+            get_air_temp,
+            lambda t: seconds_for_temp('c3', t),
+            client, 'cycles_circuit_3_effective',
+
+            # ✅ MINUTEN -> ms
+            lambda: get_c3_duration_min() * 60 * 1000,
+
+            get_active_window_minutes,
+        )
+    )
+    
     
 
     # --- Blocking cloud loop ---
@@ -538,6 +559,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 ```
 #### hw/sensors_sht20.py
