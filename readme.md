@@ -1380,7 +1380,7 @@ Core parts of the system were used for two years — with a simple timer — bef
 ### ESP32 Wiring
 ![Arduino Nano ESP32 wiring](https://github.com/andifuerholz/balcony-bioponic/blob/bc93deddbc6b00784411bc56c6c973a75ff1a4b9/img/Arduino%20Nano%20ESP32%20connection.jpg?raw=true)
 
-```
+
 ### Water Level Sensing Subsystem (PCF8574T + Reed Switches)
 
 #### Overview
