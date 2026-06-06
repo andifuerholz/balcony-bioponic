@@ -210,6 +210,7 @@ DS18B20_PIN = 4
 # --- Relays / Actuators ---
 RELAY1_PIN = 38   # D11
 RELAY2_PIN = 18   # D09
+RELAY3_PIN = 47   # D12
 
 RELAY_ACTIVE_LOW = False  # falls Relais invertiert sind → True setzen
 
