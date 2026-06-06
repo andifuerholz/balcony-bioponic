@@ -831,6 +831,7 @@ import _thread
 _state = {
     'c1': {'profiles': None, 'secs': set()},
     'c2': {'profiles': None, 'secs': set()},
+    'c3': {'profiles': None, 'secs': set()},
 }
 _lock = _thread.allocate_lock()
 
