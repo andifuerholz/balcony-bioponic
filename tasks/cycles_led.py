@@ -56,7 +56,8 @@ def cycles_blink_task(set_led_fn,
     while True:
         try:
             t_local, _, _ = localtime_ch()
-            sec = t_local[5]  # 0..59
+            sec = t_local[5]  # 0..59 # Development
+            #minute = t_local[4]  # minutes (0..59) # Produduction
             now_ms = ticks_ms()
             now_m = _minutes_since_midnight(t_local)
 
@@ -65,11 +66,16 @@ def cycles_blink_task(set_led_fn,
                 set_led_fn(led_pin, False)
                 led_active_until = 0
 
-            # Determine active seconds set for current temperature
-            active_secs = set()
-            if select_secs_fn:
-                temp_c = get_temp_fn() if get_temp_fn else None
-                active_secs = select_secs_fn(temp_c)
+            # Determine active minutes (secondes for development) set for current temperature
+            
+            # Development
+            active_secs = select_secs_fn(temp_c)
+            if (sec in active_secs) and (sec != last_fired_sec):
+
+            # Production
+            #active_minutes = select_secs_fn(temp_c)  # Name bleibt API-kompatibel
+            #if (minute in active_minutes) and (minute != last_fired_minute):
+   
 
             # Optionally publish the effective set whenever it changes
             if client and effective_var_name is not None:
