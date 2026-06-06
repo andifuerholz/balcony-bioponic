@@ -37,16 +37,15 @@ Project in development...hang on...
 The bioponics system is built from a set of components aiming for a balcony-scale food production. The hardware includes:
 
 - **Two cultivation channels**, each equipped with six holes for net pots used to grow lettuces and other leafy greens.
-- **Two planting containers** for larger crops such as tomatoes or chayote.
+- **Two to three planting containers** for larger crops such as tomatoes or chayote.
 - **One 15 litres water tank** containing the nutrient solution.
 - **A Biofilter** with cocos a clay balls which creates and maintains the microbial colonies needed to break down organic fertilizers so that nutrients become continuously available to the plants.
-- **One water pump** responsible for circulating the nutrient solution through the system.
-- **Two water control valves** to regulate flow distribution between the cultivation channels and the planting containers.
+- **Two water pumps** responsible for circulating the nutrient solution through the cultivation channels and the planting containers.
 - **One air pump** which supplies oxygen to keep the microbial communities active so they can efficiently break down organic nutrients
 - **One Arduino Nano ESP32 S3**, serving as the central microcontroller for automation and pump control.
 - **Additional electronic components**, including relays, voltage converters, a power supply, and supporting circuitry.
 - **SH20 temperature/humidity sensor (I2C)** to measure ambient temperature and humidity.
-- **SH20 temperature sensor (I2C) (DS18B20)** to monitor the nutrient solution temperature.
+- **SH20 temperature sensor (I2C)** to monitor the nutrient solution temperature.
 - **A custom-built water level sensing system**, consisting of six reed switches positioned at different heights.
 - **An auxiliary tank with its own pump** to refill or stabilize the main reservoir when required.
 
@@ -1381,16 +1380,12 @@ Core parts of the system were used for two years — with a simple timer — bef
 ### ESP32 Wiring
 ![Arduino Nano ESP32 wiring](https://github.com/andifuerholz/balcony-bioponic/blob/bc93deddbc6b00784411bc56c6c973a75ff1a4b9/img/Arduino%20Nano%20ESP32%20connection.jpg?raw=true)
 
-#### Connecting a DS18B20 Temperature Sensor to the Arduino Nano ESP32
-
-
 ```
 ### Water Level Sensing Subsystem (PCF8574T + Reed Switches)
 
 #### Overview
 
-The main tank contains a **vertical float with six embedded magnets**, each positioned at a fixed height.  
-Along the tank wall, **six reed switches** are mounted at corresponding levels.
+The main tank contains a **vertical float with an embedded magnet**. Along the tank wall, **six reed switches** are mounted at corresponding levels.
 
 A **PCF8574T I/O expander** reads the reed switches via I²C, providing a simple and robust way to measure the tank fill level.
 
