@@ -504,8 +504,7 @@ from hw.sensors_sht20 import SHT20Manager
 
 from state.runtime import (
     get_air_temp,
-    get_c1_duration_s,
-    get_c2_duration_s,
+    get_c1_duration_s, get_c2_duration_s, get_c3_duration_s,
     get_active_window_minutes,
 )
 
