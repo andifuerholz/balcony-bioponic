@@ -482,7 +482,7 @@ from cloud.callbacks import (
     onStartHourChange, onEndHourChange,
 )
 from tasks.time_task import time_and_temp_task
-from tasks.cycles_led import cycles_blink_task
+from tasks.cycles_control import cycles_control_task
 from hw.sensors_sht20 import SHT20Manager
 
 from state.runtime import (
