@@ -38,7 +38,7 @@ def cycles_control_task(
     get_window_minutes_fn=None,
 ):
     """
-    Poll current local second; if within the active window and configured, turn LED ON
+    Poll current local second; if within the active window and configured, activate actuator
     for the configured duration (seconds) on each trigger second. Non-blocking pulses.
     """
     led_active_until = 0
