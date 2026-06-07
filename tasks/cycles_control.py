@@ -6,6 +6,7 @@
 
 from time import sleep, ticks_ms, ticks_diff
 from time_zh import localtime_ch
+from config import TIME_MODE
 
 
 def _minutes_since_midnight(local_tuple):
@@ -38,19 +39,22 @@ def cycles_control_task(
     get_window_minutes_fn=None,
 ):
     """
-    Poll current local second; if within the active window and configured,
-    activate the actuator for the configured duration (seconds) on each trigger second.
-    Uses non-blocking timing.
+    Poll current time unit (seconds in DEV, minutes in PROD).
+    If within the active window and configured,
+    activate the actuator for the configured duration.
     """
     actuator_active_until = 0
-    last_fired_sec = -1
+    last_fired = -1
     last_effective = None
 
     while True:
         try:
             # --- Time ---
             t_local, _, _ = localtime_ch()
-            sec = t_local[5]  # Development: second-based triggering
+
+            # DEV = seconds, PROD = minutes
+            time_unit = t_local[5] if TIME_MODE == "DEV" else t_local[4]
+
             now_ms = ticks_ms()
             now_m = _minutes_since_midnight(t_local)
 
@@ -98,11 +102,18 @@ def cycles_control_task(
                     pass
 
             # --- Trigger ---
-            if (sec in active_secs) and (sec != last_fired_sec):
+            if (time_unit in active_secs) and (time_unit != last_fired):
                 set_actuator_fn(actuator, True)
                 actuator_active_until = now_ms + duration_ms
-                last_fired_sec = sec
-                print("[cycles] Trigger at", sec, "→ actuator active for", duration_ms, "ms")
+                last_fired = time_unit
+
+                print(
+                    "[cycles] Trigger at",
+                    time_unit,
+                    "→ actuator active for",
+                    duration_ms,
+                    "ms"
+                )
 
         except Exception as e:
             print("cycles_control_task error:", e)
