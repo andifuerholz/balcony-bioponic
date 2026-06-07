@@ -119,6 +119,7 @@ def main():
         # Read-only mirrors (strings like "0,15,30,45" when the effective set changes):
         'cycles_circuit_1_effective': {},
         'cycles_circuit_2_effective': {},
+        'cycles_circuit_3_effective': {},
         'tankLevel': {},
     })
     
