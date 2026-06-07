@@ -250,3 +250,16 @@ def onEndHourChange(client, value):
 
     except Exception as e:
         print("onEndHourChange error:", e)
+        
+
+def onRefillTank(client, value):
+    # Button → Event
+    if value:
+        from state.runtime import trigger_refill
+        trigger_refill()
+        print("[REFILL] Triggered")
+
+def onRefillTimeChange(client, value):
+    from state.runtime import set_refill_time_s
+    set_refill_time_s(value)
+    print("[REFILL] Duration set to", value)
