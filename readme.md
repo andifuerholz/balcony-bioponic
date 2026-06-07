@@ -311,7 +311,7 @@ DEFAULT_END_HOUR   = 21  # 21:00
 
 # Safety clamps for watering pulse duration (in seconds)
 MIN_SWITCH_DURATION_S = 1
-MAX_SWITCH_DURATION_S = 300  # 5 minutes
+MAX_SWITCH_DURATION_S = 60
 
 # ---------------------------------
 # DS18B20 mapping & validation
