@@ -336,7 +336,7 @@ TEMP_MAX = 60.0
 
 import _thread
 from config import (
-    DEFAULT_C1_SWITCH_DURATION_S,
+    DEFAULT_SWITCH_DURATION_S,
     MIN_SWITCH_DURATION_S, MAX_SWITCH_DURATION_S,
     DEFAULT_START_HOUR, DEFAULT_END_HOUR
 )
@@ -357,7 +357,7 @@ def get_air_temp(default=None):
         return _air_temp if _air_temp is not None else default
 
 # --- Circuit 1: watering pulse duration (seconds) -----------------------------
-_c1_duration_s = DEFAULT_C1_SWITCH_DURATION_S
+_c1_duration_s = DEFAULT_SWITCH_DURATION_S
 _c1_lock = _thread.allocate_lock()
 
 def set_c1_duration_s(v_s: int):
@@ -386,7 +386,7 @@ def get_c1_duration_ms() -> int:
     
 # --- Circuit 2: watering pulse duration (seconds) -----------------------------
 
-_c2_duration_s = DEFAULT_C1_SWITCH_DURATION_S   # gleicher Default ok
+_c2_duration_s = DEFAULT_SWITCH_DURATION_S   # gleicher Default ok
 _c2_lock = _thread.allocate_lock()
 
 def set_c2_duration_s(v_s: int):
@@ -404,7 +404,7 @@ def get_c2_duration_s() -> int:
         return int(_c2_duration_s)
     
 # --- Circuit 3: air pump pulse duration (seconds) -----------------------------
-_c3_duration_s = DEFAULT_C1_SWITCH_DURATION_S   # gleicher Default ok
+_c3_duration_s = DEFAULT_SWITCH_DURATION_S   # gleicher Default ok
 _c3_lock = _thread.allocate_lock()
 
 def set_c3_duration_s(v_s: int):
