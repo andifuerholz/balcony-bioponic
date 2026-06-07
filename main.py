@@ -94,16 +94,6 @@ def main():
         _thread.start_new_thread(lcd_task, (lcd,))
     
     # --- Cloud client & variables registration ---
-    # Expect the following variables to exist in Arduino Cloud:
-    # - time_zh (string; R/O)
-    # - air_temp (float; R/O) → published by sensor task
-    # - cycles_circuit_1 (string; R/W) → profile text or legacy CSV seconds
-    # - cycles_circuit_2 (string; R/W) → profile text or legacy CSV seconds
-    # - switchDuration_circuit_1 (int/number; R/W) → pulse length (seconds)
-    # - startHour (time; R/W) → active window start (local time)
-    # - endHour   (time; R/W) → active window end   (local time)
-    # - cycles_circuit_1_effective (string; R/O) → comma-separated active seconds
-    # - cycles_circuit_2_effective (string; R/O) → comma-separated active seconds
     client = create_client({
         'time_zh': {},
         'air_temp': {},
