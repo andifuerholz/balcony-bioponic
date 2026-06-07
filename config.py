@@ -26,7 +26,7 @@ PCF8574_ADDR = 0x20
 
 # Task periods / polling (seconds or milliseconds as noted)
 TIME_UPDATE_PERIOD_S = 1
-LED_CYCLE_POLL_MS = 100
+CYCLE_POLL_MS = 100
 
 # Default pulse length used only as fallback; cloud overrides it (circuit 1).
 # NOTE: Now expressed in *seconds* for conceptual alignment with cloud variable.
