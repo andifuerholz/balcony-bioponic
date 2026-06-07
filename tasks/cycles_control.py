@@ -1,8 +1,8 @@
 # tasks/cycles_control.py
-# Cyclic worker for trigger-on-second watering logic with:
+# Cyclic worker for trigger-based watering logic with:
 # - dynamic pulse duration (seconds) via getter
 # - active day window (start/end minutes) via getter
-# - publication of the effective seconds set (optional)
+# - publication of the effective trigger set (optional)
 
 from time import sleep, ticks_ms, ticks_diff
 from time_zh import localtime_ch
@@ -28,7 +28,7 @@ def _within_window(now_m, start_m, end_m):
 
 def cycles_control_task(
     set_actuator_fn,
-    led_pin,
+    actuator,
     poll_ms=100,
     get_temp_fn=None,
     select_secs_fn=None,
@@ -38,10 +38,11 @@ def cycles_control_task(
     get_window_minutes_fn=None,
 ):
     """
-    Poll current local second; if within the active window and configured, activate actuator
-    for the configured duration (seconds) on each trigger second. Non-blocking pulses.
+    Poll current local second; if within the active window and configured,
+    activate the actuator for the configured duration (seconds) on each trigger second.
+    Uses non-blocking timing.
     """
-    led_active_until = 0
+    actuator_active_until = 0
     last_fired_sec = -1
     last_effective = None
 
@@ -49,16 +50,16 @@ def cycles_control_task(
         try:
             # --- Time ---
             t_local, _, _ = localtime_ch()
-            sec = t_local[5]  # Development: seconds
+            sec = t_local[5]  # Development: second-based triggering
             now_ms = ticks_ms()
             now_m = _minutes_since_midnight(t_local)
 
             # --- Turn OFF when duration elapsed ---
-            if led_active_until and ticks_diff(led_active_until, now_ms) <= 0:
-                set_actuator_fn(led_pin, False)
-                led_active_until = 0
+            if actuator_active_until and ticks_diff(actuator_active_until, now_ms) <= 0:
+                set_actuator_fn(actuator, False)
+                actuator_active_until = 0
 
-            # --- Determine active set ---
+            # --- Determine active trigger set ---
             temp_c = get_temp_fn() if get_temp_fn else None
             active_secs = select_secs_fn(temp_c) if select_secs_fn else set()
 
@@ -82,9 +83,9 @@ def cycles_control_task(
                     in_window = True  # fail-open
 
             if not in_window:
-                if led_active_until:
-                    set_actuator_fn(led_pin, False)
-                    led_active_until = 0
+                if actuator_active_until:
+                    set_actuator_fn(actuator, False)
+                    actuator_active_until = 0
                 sleep(poll_ms / 1000.0)
                 continue
 
@@ -98,12 +99,12 @@ def cycles_control_task(
 
             # --- Trigger ---
             if (sec in active_secs) and (sec != last_fired_sec):
-                set_actuator_fn(led_pin, True)
-                led_active_until = now_ms + duration_ms
+                set_actuator_fn(actuator, True)
+                actuator_active_until = now_ms + duration_ms
                 last_fired_sec = sec
                 print("[cycles] Trigger at", sec, "→ actuator active for", duration_ms, "ms")
 
         except Exception as e:
-            print("cycles_blink_task error:", e)
+            print("cycles_control_task error:", e)
 
         sleep(poll_ms / 1000.0)
