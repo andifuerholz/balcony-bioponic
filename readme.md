@@ -174,6 +174,7 @@ It is effectively a **lightweight, soft real-time control system** tailored for 
 	📄 tasks/time_task.py<br>
 	📄 tasks/cycles_control.py<br>
 	📄 tasks/lcd_task.py<br>
+	📄 tasks/refill_tank.py<br>
 📁 hw/<br>
 	📄 hw/pins.py<br>
 	📄 hw/sensors_sht20.py<br>
