@@ -581,7 +581,7 @@ def main():
         (client, manager, TIME_UPDATE_PERIOD_S)
     )
 
-    # 2) High-frequency cycle workers (development: both circuits use the same LED output)
+    # 2) High-frequency cycle workers
     # Circuit 1: temperature-driven schedule *and* cloud-driven pulse duration + active window
     _thread.start_new_thread(
         cycles_control_task,
@@ -820,7 +820,7 @@ def cycles_control_task(
     get_window_minutes_fn=None,
 ):
     """
-    Poll current local second; if within the active window and configured, turn LED ON
+    Poll current local second; if within the active window and configured, activate actuator
     for the configured duration (seconds) on each trigger second. Non-blocking pulses.
     """
     led_active_until = 0
