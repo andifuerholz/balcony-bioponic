@@ -21,7 +21,8 @@ from config import (
     I2C_SDA_PIN,
     RELAY1_PIN,
     RELAY2_PIN,
-    RELAY3_PIN
+    RELAY3_PIN,
+    RELAY4_PIN,
 )
 
 from hw.relay import make_relay, set_relay
@@ -31,15 +32,17 @@ from cloud.callbacks import (
     seconds_for_temp,
     onC1DurationChange, onC2DurationChange, onC3DurationChange,
     onStartHourChange, onEndHourChange,
+    onRefillTank, onRefillTimeChange,
 )
 from tasks.time_task import time_and_temp_task
 from tasks.cycles_control import cycles_control_task
+from tasks.refill_task import refill_task
 from hw.sensors_sht20 import SHT20Manager
-
 from state.runtime import (
     get_air_temp,
     get_c1_duration_s, get_c2_duration_s, get_c3_duration_s,
     get_active_window_minutes,
+    consume_refill_request, get_refill_time_s,
 )
 
 from tasks.lcd_task import lcd_task
@@ -58,6 +61,7 @@ def main():
     relay1 = make_relay(RELAY1_PIN)
     relay2 = make_relay(RELAY2_PIN)
     relay3 = make_relay(RELAY3_PIN)
+    relay4 = make_relay(RELAY4_PIN)
 
     
     # I2C BUS ERZEUGEN
@@ -107,6 +111,8 @@ def main():
         'cycles_circuit_2_effective': {},
         'cycles_circuit_3_effective': {},
         'tankLevel': {},
+        'refill_tank': {'on_write': onRefillTank},
+        'refill_tank_time': {'on_write': onRefillTimeChange},
     })
     
     # --- Sensors manager (SHT20 over I2C) ---
@@ -159,6 +165,19 @@ def main():
             client, 'cycles_circuit_3_effective',
             get_c3_duration_s,
             get_active_window_minutes,
+        )
+    )
+
+    # Tank refill task
+
+    _thread.start_new_thread(
+        refill_task,
+        (
+            set_relay, relay4,
+            200,   # poll_ms (unabhängig!)
+            consume_refill_request,
+            get_refill_time_s,
+            client,
         )
     )
     
