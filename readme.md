@@ -295,6 +295,7 @@ I2C_SDA_PIN = 6
 
 # I2C Addresses
 PCF8574_ADDR = 0x20
+LCD_ADDR = 0x3E
 
 # Task periods / polling (seconds or milliseconds as noted)
 TIME_UPDATE_PERIOD_S = 1
