@@ -808,7 +808,7 @@ def _within_window(now_m, start_m, end_m):
     return (now_m >= start_m) or (now_m < end_m)
 
 
-def cycles_blink_task(
+def cycles_control_task(
     set_led_fn,
     led_pin,
     poll_ms=100,
