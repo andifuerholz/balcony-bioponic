@@ -469,7 +469,6 @@ import _thread
 from machine import I2C, Pin
 import tankReeds
 from config import (
-    DS18B20_PIN,
     TIME_UPDATE_PERIOD_S,
     CYCLE_POLL_MS,
     I2C_SCL_PIN,
