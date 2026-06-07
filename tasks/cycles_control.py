@@ -27,7 +27,7 @@ def _within_window(now_m, start_m, end_m):
 
 
 def cycles_control_task(
-    set_led_fn,
+    set_actuator_fn,
     led_pin,
     poll_ms=100,
     get_temp_fn=None,
@@ -55,7 +55,7 @@ def cycles_control_task(
 
             # --- Turn OFF when duration elapsed ---
             if led_active_until and ticks_diff(led_active_until, now_ms) <= 0:
-                set_led_fn(led_pin, False)
+                set_actuator_fn(led_pin, False)
                 led_active_until = 0
 
             # --- Determine active set ---
@@ -83,7 +83,7 @@ def cycles_control_task(
 
             if not in_window:
                 if led_active_until:
-                    set_led_fn(led_pin, False)
+                    set_actuator_fn(led_pin, False)
                     led_active_until = 0
                 sleep(poll_ms / 1000.0)
                 continue
@@ -98,7 +98,7 @@ def cycles_control_task(
 
             # --- Trigger ---
             if (sec in active_secs) and (sec != last_fired_sec):
-                set_led_fn(led_pin, True)
+                set_actuator_fn(led_pin, True)
                 led_active_until = now_ms + duration_ms
                 last_fired_sec = sec
                 print("[cycles] Fired at second", sec, "for", duration_ms, "ms")
