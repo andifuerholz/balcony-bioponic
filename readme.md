@@ -919,11 +919,13 @@ def cycles_control_task(
 import _thread
 
 # Per-circuit state for seconds selection
+
 _state = {
     'c1': {'profiles': None, 'secs': set()},
     'c2': {'profiles': None, 'secs': set()},
     'c3': {'profiles': None, 'secs': set()},
 }
+
 _lock = _thread.allocate_lock()
 
 # ---------- Utility: CSV "seconds" parser ----------
@@ -1005,6 +1007,10 @@ def onCycles1Change(client, value):
 def onCycles2Change(client, value):
     """on_write for 'cycles_circuit_2' (string)."""
     _update_circuit_from_text('c2', value if isinstance(value, str) else str(value))
+    
+def onCycles3Change(client, value):
+    """on_write for 'cycles_circuit_3' (string)."""
+    _update_circuit_from_text('c3', value if isinstance(value, str) else str(value))
 
 def seconds_for_temp(c_key: str, temp_c):
     """
@@ -1106,6 +1112,14 @@ def onC2DurationChange(client, value):
         print(f"[c2] switch duration set to {int(value)} s")
     except Exception as e:
         print("onC2DurationChange error:", e)
+        
+def onC3DurationChange(client, value):
+    try:
+        from state.runtime import set_c3_duration_s
+        set_c3_duration_s(int(value))
+        print(f"[c3] switch duration set to {int(value)} s")
+    except Exception as e:
+        print("onC3DurationChange error:", e)
 
 
 def onStartHourChange(client, value):
@@ -1148,6 +1162,7 @@ def onEndHourChange(client, value):
 
     except Exception as e:
         print("onEndHourChange error:", e)
+
 
 ```
 
