@@ -172,7 +172,7 @@ It is effectively a **lightweight, soft real-time control system** tailored for 
 	📄 cloud/callbacks.py<br>
 📁 tasks/<br>
 	📄 tasks/time_task.py<br>
-	📄 tasks/cycles_led.py<br>
+	📄 tasks/cycles_control.py<br>
 📁 hw/<br>
 	📄 hw/led.py<br>
 	📄 hw/pins.py<br>
@@ -777,10 +777,10 @@ def time_and_temp_task(client, ds18_manager, period_s=1):
         time.sleep(period_s if period_s and period_s > 0 else 1)
 ```
 
-####  tasks/cycles_led.py
+####  tasks/cycles_control.py
 
 ```python
-# tasks/cycles_led.py
+# tasks/cycles_control.py
 # Cyclic worker for trigger-on-second watering logic with:
 # - dynamic pulse duration (seconds) via getter
 # - active day window (start/end minutes) via getter
