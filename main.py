@@ -27,10 +27,9 @@ from config import (
 from hw.relay import make_relay, set_relay
 from cloud.client import create_client
 from cloud.callbacks import (
-    onCycles1Change, onCycles2Change,
+    onCycles1Change, onCycles2Change, onCycles3Change,
     seconds_for_temp,
-    onC1DurationChange,
-    onC2DurationChange,
+    onC1DurationChange, onC2DurationChange, onC3DurationChange,
     onStartHourChange, onEndHourChange,
 )
 from tasks.time_task import time_and_temp_task
