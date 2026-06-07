@@ -83,6 +83,81 @@ The system uses several components, libraries and external services:
   *How to Connect the ESP32 MicroPython to Arduino IoT Cloud*  
   https://forum.arduino.cc/t/how-to-connect-the-esp32-micropython-to-arduino-iot-cloud/1234953
 
+### Software Architecture
+
+The software architecture follows a **layered and modular design**, separating hardware access, application logic, state management, and cloud interaction. The system is structured to support **concurrent tasks** on a resource‑constrained ESP32 using MicroPython threads.
+
+At a high level, the architecture consists of the following layers:
+
+- **Boot Layer**
+  - Handles Wi‑Fi connectivity and NTP time synchronization at startup
+  - Ensures that secure cloud communication (TLS) is possible before other components initialize
+
+- **Application Layer (main.py)**
+  - Acts as the central orchestrator
+  - Initializes hardware components (relays, I²C devices, sensors, LCD)
+  - Registers Arduino Cloud variables and their callbacks
+  - Starts background tasks (threads)
+  - Runs the blocking cloud client loop
+
+- **State Layer (`state/runtime.py`)**
+  - Provides a **thread-safe shared state**
+  - Stores dynamic values such as:
+    - ambient temperature
+    - watering durations per circuit
+    - active time window
+  - Ensures safe concurrent access via locks
+  - Acts as the single source of truth between tasks and cloud callbacks
+
+- **Task Layer (`tasks/`)**
+  - Implements concurrent workers with different execution frequencies:
+    - **Low-frequency task**: updates time, reads sensors, publishes values
+    - **High-frequency task**: evaluates watering schedules and triggers relays
+    - **UI task**: manages LCD output
+  - Uses polling combined with non-blocking timing (`ticks_ms`) to achieve soft real-time behavior
+
+- **Hardware Abstraction Layer (`hw/`)**
+  - Encapsulates direct hardware interaction:
+    - relays
+    - sensors (SHT20, DS18B20)
+    - LCD display
+    - I²C devices
+  - Provides simple, reusable interfaces for higher-level components
+
+- **Cloud Integration Layer (`cloud/`)**
+  - Manages communication with Arduino IoT Cloud
+  - Uses a callback-driven model:
+    - cloud variables update local runtime state
+    - configuration changes are applied immediately
+  - Supports both structured profiles and legacy configuration formats
+
+---
+
+The system follows a **hybrid control model**:
+
+- **Event-driven behavior** via cloud callbacks updating runtime parameters
+- **Time-driven polling loops** for evaluating schedules and triggering actions
+
+The core watering logic is implemented as a **cycle-based trigger system**:
+
+1. Read current time and temperature  
+2. Determine active trigger seconds based on temperature profiles  
+3. Check if the system is within the configured active time window  
+4. Activate relays for a configurable duration when a trigger condition is met  
+
+This approach avoids blocking delays and allows overlapping operations across multiple circuits.
+
+---
+
+Overall, the architecture provides:
+
+- clear separation of concerns  
+- high configurability via cloud variables  
+- robustness through state encapsulation  
+- flexibility for extending sensors, actuators, or control logic  
+
+It is effectively a **lightweight, soft real-time control system** tailored for IoT-based environmental automation.
+
 ### Files
 
 📄 boot.py<br>
@@ -91,6 +166,7 @@ The system uses several components, libraries and external services:
 📄 main.py<br>
 📄 time_zh.py<br>
 📄 tankReeds.py<br>
+📄 lcd1602.py<br>
 📁 cloud/<br>
 	📄 cloud/client.py<br>
 	📄 cloud/callbacks.py<br>
@@ -101,7 +177,7 @@ The system uses several components, libraries and external services:
 	📄 hw/led.py<br>
 	📄 hw/pins.py<br>
 	📄 hw/sensors_sht20.py<br>
-	lcd1602.py<br>
+	📄 hw/relay.py<br>
 📁 state/<br>
 	📄 state/runtime.py<br>
 📁 lib/<br>
