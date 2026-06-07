@@ -542,7 +542,6 @@ def main():
     
     # --- Cloud client & variables registration ---
     # Expect the following variables to exist in Arduino Cloud:
-    # - led_state (bool; R/W)
     # - time_zh (string; R/O)
     # - air_temp (float; R/O) → published by sensor task
     # - cycles_circuit_1 (string; R/W) → profile text or legacy CSV seconds
