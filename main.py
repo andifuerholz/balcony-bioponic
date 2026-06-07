@@ -133,7 +133,7 @@ def main():
         (client, manager, TIME_UPDATE_PERIOD_S)
     )
 
-    # 2) High-frequency cycle workers (development: both circuits use the same LED output)
+    # 2) High-frequency cycle workers
     # Circuit 1: temperature-driven schedule *and* cloud-driven pulse duration + active window
     _thread.start_new_thread(
         cycles_control_task,
