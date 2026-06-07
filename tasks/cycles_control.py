@@ -101,7 +101,7 @@ def cycles_control_task(
                 set_actuator_fn(led_pin, True)
                 led_active_until = now_ms + duration_ms
                 last_fired_sec = sec
-                print("[cycles] Fired at second", sec, "for", duration_ms, "ms")
+                print("[cycles] Trigger at", sec, "→ actuator active for", duration_ms, "ms")
 
         except Exception as e:
             print("cycles_blink_task error:", e)
