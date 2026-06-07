@@ -174,7 +174,6 @@ It is effectively a **lightweight, soft real-time control system** tailored for 
 	📄 tasks/time_task.py<br>
 	📄 tasks/cycles_control.py<br>
 📁 hw/<br>
-	📄 hw/led.py<br>
 	📄 hw/pins.py<br>
 	📄 hw/sensors_sht20.py<br>
 	📄 hw/relay.py<br>
@@ -1161,27 +1160,6 @@ def create_client(register_map: dict):
     for var, kwargs in register_map.items():
         client.register(var, **kwargs)
     return client
-
-```
-
-#### hw/led.py
-```python
-# hw/led.py
-from machine import Pin
-from config import LED_PIN, ACTIVE_LOW
-
-def make_led():
-    """Create and return the LED Pin object, OFF by default."""
-    p = Pin(LED_PIN, Pin.OUT)
-    p.value(1 if ACTIVE_LOW else 0)
-    return p
-
-def set_led(pin, on: bool):
-    """Set LED ON/OFF respecting polarity."""
-    if ACTIVE_LOW:
-        pin.value(0 if on else 1)
-    else:
-        pin.value(1 if on else 0)
 
 ```
 
