@@ -24,7 +24,6 @@ from config import (
     RELAY3_PIN
 )
 
-
 from hw.relay import make_relay, set_relay
 from cloud.client import create_client
 from cloud.callbacks import (
@@ -80,17 +79,15 @@ def main():
             lcd = LCD1602(i2c, 16, 2)
             backlight = SN3193(i2c)
             backlight.set_brightness(20)
-
-            # Background LCD thread
-            _thread.start_new_thread(lcd_task, (lcd,))
             print("LCD initialized")
         except Exception as e:
             print("LCD init failed:", e)
     else:
         print("LCD not found on I2C bus")
-        
-        # Background LCD thread
-        _thread.start_new_thread(lcd_task, (lcd,))
+
+    # 👉 GENAU EIN Thread-Start, an EINER Stelle:
+    if lcd is not None:
+        _thread.start_new_thread(lcd_task, (lcd, i2c))
     
     # --- Cloud client & variables registration ---
     client = create_client({
