@@ -139,7 +139,7 @@ def main():
         cycles_control_task,
         (
             set_relay, relay1,
-            LED_CYCLE_POLL_MS,
+            CYCLE_POLL_MS,
             get_air_temp,
             lambda t: seconds_for_temp('c1', t),
             client, 'cycles_circuit_1_effective',
@@ -153,7 +153,7 @@ def main():
         cycles_control_task,
         (
             set_relay, relay2,
-            LED_CYCLE_POLL_MS,
+            CYCLE_POLL_MS,
             get_air_temp,
             lambda t: seconds_for_temp('c2', t),
             client, 'cycles_circuit_2_effective',
@@ -167,7 +167,7 @@ def main():
     cycles_control_task,
         (
             set_relay, relay3,
-            LED_CYCLE_POLL_MS,
+            CYCLE_POLL_MS,
             get_air_temp,
             lambda t: seconds_for_temp('c3', t),
             client, 'cycles_circuit_3_effective',
