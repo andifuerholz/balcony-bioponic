@@ -2,22 +2,39 @@ from time import sleep, ticks_ms, ticks_diff
 from time_zh import localtime_ch
 from cloud.callbacks import seconds_for_temp
 from state.runtime import get_air_temp
+from config import TIME_MODE
 import tankReeds
 
 
 # -------------------------------------------------
 # Helper: Countdown bis zum nächsten Trigger
 # -------------------------------------------------
-def seconds_until_next_trigger(current_sec, active_secs):
-    if not active_secs:
+def time_until_next(current, active):
+    if not active:
         return 99
 
-    future = sorted(s for s in active_secs if s > current_sec)
+    future = sorted(x for x in active if x > current)
 
     if future:
-        return future[0] - current_sec
+        return future[0] - current
 
-    return (60 - current_sec) + min(active_secs)
+    return (60 - current) + min(active)
+
+def seconds_until_next_trigger(current, active):
+    """
+    Works for both:
+    - seconds (DEV)
+    - minutes (PROD)
+    """
+    if not active:
+        return 99
+
+    future = sorted(x for x in active if x > current)
+
+    if future:
+        return future[0] - current
+
+    return (60 - current) + min(active)
 
 
 # -------------------------------------------------
@@ -74,6 +91,7 @@ def lcd_task(lcd, i2c, period_s=1):
             # --- Zeit ---
             t_local, _, _ = localtime_ch()
             hh, mm, ss = t_local[3], t_local[4], t_local[5]
+            current = ss if TIME_MODE == "DEV" else mm
 
             # --- Temperatur ---
             temp = get_air_temp()
@@ -83,8 +101,9 @@ def lcd_task(lcd, i2c, period_s=1):
             secs_c2 = seconds_for_temp('c2', temp)
 
             # --- Countdown ---
-            c1_cd = seconds_until_next_trigger(ss, secs_c1)
-            c2_cd = seconds_until_next_trigger(ss, secs_c2)
+            c1_cd = seconds_until_next_trigger(current, secs_c1)
+            c2_cd = seconds_until_next_trigger(current, secs_c2)
+
 
             c1_cd = min(99, c1_cd)
             c2_cd = min(99, c2_cd)
