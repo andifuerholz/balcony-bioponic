@@ -464,7 +464,7 @@ import tankReeds
 from config import (
     DS18B20_PIN,
     TIME_UPDATE_PERIOD_S,
-    LED_CYCLE_POLL_MS,
+    CYCLE_POLL_MS,
     I2C_SCL_PIN,
     I2C_SDA_PIN,
     RELAY1_PIN,
