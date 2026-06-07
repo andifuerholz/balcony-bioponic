@@ -2,6 +2,9 @@
 # Central configuration for pins, timing, and DS18B20 sensor mapping/calibration.
 # All comments are in English as requested.
 
+# --- Mode ---
+TIME_MODE = "DEV"      # "DEV" oder "PROD"
+
 # ---------------------------------
 # Hardware pins & timing parameters
 # ---------------------------------
