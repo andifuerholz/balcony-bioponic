@@ -584,7 +584,7 @@ def main():
     # 2) High-frequency cycle workers (development: both circuits use the same LED output)
     # Circuit 1: temperature-driven schedule *and* cloud-driven pulse duration + active window
     _thread.start_new_thread(
-        cycles_blink_task,
+        cycles_control_task,
         (
             set_relay, relay1,
             LED_CYCLE_POLL_MS,
@@ -598,7 +598,7 @@ def main():
 
     # Circuit 2: temperature-driven schedule *and* cloud-driven pulse duration + active window
     _thread.start_new_thread(
-        cycles_blink_task,
+        cycles_control_task,
         (
             set_relay, relay2,
             LED_CYCLE_POLL_MS,
@@ -612,7 +612,7 @@ def main():
     
     # Circuit 3 (air pump): temperature-driven schedule *and* cloud-driven pulse duration + active window
     _thread.start_new_thread(
-    cycles_blink_task,
+    cycles_control_task,
         (
             set_relay, relay3,
             LED_CYCLE_POLL_MS,
