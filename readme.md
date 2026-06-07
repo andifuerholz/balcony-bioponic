@@ -413,6 +413,25 @@ def set_c2_duration_s(v_s: int):
 def get_c2_duration_s() -> int:
     with _c2_lock:
         return int(_c2_duration_s)
+    
+# --- Circuit 3: air pump pulse duration (seconds) -----------------------------
+_c3_duration_s = DEFAULT_C1_SWITCH_DURATION_S   # gleicher Default ok
+_c3_lock = _thread.allocate_lock()
+
+def set_c3_duration_s(v_s: int):
+    global _c3_duration_s
+    try:
+        v = int(v_s)
+    except Exception:
+        return
+    v = max(MIN_SWITCH_DURATION_S, min(v, MAX_SWITCH_DURATION_S))
+    with _c3_lock:
+        _c3_duration_s = v
+
+def get_c3_duration_s() -> int:
+    with _c3_lock:
+        return int(_c3_duration_s)
+    
 
 # --- Active day window (start/end minutes after midnight) ---------------------
 # Stored as minutes since midnight [0..1439]. Default 07:00..21:00.
