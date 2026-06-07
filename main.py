@@ -16,12 +16,14 @@ import tankReeds
 from config import (
     TIME_UPDATE_PERIOD_S,
     CYCLE_POLL_MS,
+    LCD_ADDR,
     I2C_SCL_PIN,
     I2C_SDA_PIN,
     RELAY1_PIN,
     RELAY2_PIN,
     RELAY3_PIN
 )
+
 
 from hw.relay import make_relay, set_relay
 from cloud.client import create_client
