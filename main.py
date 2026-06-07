@@ -110,10 +110,10 @@ def main():
         'air_humidity': {},
         'cycles_circuit_1': {'on_write': onCycles1Change},
         'cycles_circuit_2': {'on_write': onCycles2Change},
-        'cycles_circuit_3': {'on_write': onCycles2Change},
+        'cycles_circuit_3': {'on_write': onCycles3Change},
         'switchDuration_circuit_1': {'on_write': onC1DurationChange},
         'switchDuration_circuit_2': {'on_write': onC2DurationChange},
-        'switchDuration_circuit_3': {'on_write': onC2DurationChange},
+        'switchDuration_circuit_3': {'on_write': onC3DurationChange},
         'startHour': {'on_write': onStartHourChange},
         'endHour':   {'on_write': onEndHourChange},
         # Read-only mirrors (strings like "0,15,30,45" when the effective set changes):
