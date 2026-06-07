@@ -170,10 +170,7 @@ def main():
             get_air_temp,
             lambda t: seconds_for_temp('c3', t),
             client, 'cycles_circuit_3_effective',
-
-            # ✅ MINUTEN -> ms
-            lambda: get_c3_duration_min() * 60 * 1000,
-
+            get_c3_duration_s,
             get_active_window_minutes,
         )
     )
