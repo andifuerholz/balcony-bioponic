@@ -542,6 +542,7 @@ def main():
     else:
         print("LCD not found on I2C bus")
 
+    # 👉 GENAU EIN Thread-Start, an EINER Stelle:
     if lcd is not None:
         _thread.start_new_thread(lcd_task, (lcd, i2c))
     
