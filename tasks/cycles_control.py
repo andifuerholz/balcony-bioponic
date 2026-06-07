@@ -1,4 +1,4 @@
-# tasks/cycles_led.py
+# tasks/cycles_control.py
 # Cyclic worker for trigger-on-second watering logic with:
 # - dynamic pulse duration (seconds) via getter
 # - active day window (start/end minutes) via getter
