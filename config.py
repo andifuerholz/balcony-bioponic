@@ -3,7 +3,7 @@
 # All comments are in English as requested.
 
 # --- Mode ---
-TIME_MODE = "DEV"      # "DEV" oder "PROD"
+TIME_MODE = "PROD"      # "DEV" oder "PROD"
 
 # ---------------------------------
 # Hardware pins & timing parameters
@@ -15,6 +15,7 @@ ACTIVE_LOW = False
 RELAY1_PIN = 38   # D11
 RELAY2_PIN = 18   # D09
 RELAY3_PIN = 47   # D12
+RELAY4_PIN = 21   # D10 # refill pump
 
 RELAY_ACTIVE_LOW = False  # falls Relais invertiert sind → True setzen
 
@@ -55,4 +56,3 @@ OFFSETS = {
 # Values outside this range will be discarded.
 TEMP_MIN = -20.0
 TEMP_MAX = 60.0
-
