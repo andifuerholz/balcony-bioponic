@@ -5,7 +5,7 @@
 # ---------------------------------
 # Hardware pins & timing parameters
 # ---------------------------------
-LED_PIN = 48
+#LED_PIN = 48
 ACTIVE_LOW = False
 DS18B20_PIN = 4
 
