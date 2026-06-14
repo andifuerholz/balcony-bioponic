@@ -43,6 +43,7 @@ DEFAULT_END_HOUR   = 21  # 21:00
 # Safety clamps for watering pulse duration (in seconds)
 MIN_SWITCH_DURATION_S = 1
 MAX_SWITCH_DURATION_S = 60
+MAX_SWITCH_DURATION_AIR_S = 1200    # z.B. 20 Minuten (frei wählbar)
 
 
 # Optional per-sensor calibration offsets in °C
