@@ -4,6 +4,7 @@ import _thread
 from config import (
     DEFAULT_SWITCH_DURATION_S,
     MIN_SWITCH_DURATION_S, MAX_SWITCH_DURATION_S,
+    MAX_SWITCH_DURATION_AIR_S,
     DEFAULT_START_HOUR, DEFAULT_END_HOUR
 )
 
@@ -31,8 +32,12 @@ _c1_lock = _thread.allocate_lock()
 _c2_lock = _thread.allocate_lock()
 _c3_lock = _thread.allocate_lock()
 
-def _clamp_duration(v):
+
+def _clamp_duration_water(v):
     return max(MIN_SWITCH_DURATION_S, min(int(v), MAX_SWITCH_DURATION_S))
+
+def _clamp_duration_air(v):
+    return max(MIN_SWITCH_DURATION_S, min(int(v), MAX_SWITCH_DURATION_AIR_S))
 
 
 def set_c1_duration_s(v_s: int):
@@ -70,7 +75,7 @@ def get_c2_duration_s() -> int:
 def set_c3_duration_s(v_s: int):
     global _c3_duration_s
     try:
-        v = _clamp_duration(v_s)
+        v = _clamp_duration_air(v_s)
         with _c3_lock:
             _c3_duration_s = v
     except:
