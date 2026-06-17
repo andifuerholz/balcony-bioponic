@@ -43,7 +43,7 @@ def _clamp_duration_air(v):
 def set_c1_duration_s(v_s: int):
     global _c1_duration_s
     try:
-        v = _clamp_duration(v_s)
+        v = _clamp_duration_water(v_s)
         with _c1_lock:
             _c1_duration_s = v
     except:
@@ -61,7 +61,7 @@ def get_c1_duration_ms() -> int:
 def set_c2_duration_s(v_s: int):
     global _c2_duration_s
     try:
-        v = _clamp_duration(v_s)
+        v = _clamp_duration_water(v_s)
         with _c2_lock:
             _c2_duration_s = v
     except:
