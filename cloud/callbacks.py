@@ -252,6 +252,19 @@ def onEndHourChange(client, value):
         print("onEndHourChange error:", e)
         
 
+def onMaxOffTimeC1Change(client, value):
+    """
+    on_write for 'max_off_time_circuit_1_min' (minutes, integer).
+    0 = disabled
+    """
+    try:
+        from state.runtime import set_c1_max_off_time_min
+        set_c1_max_off_time_min(int(value))
+        print(f"[c1] max off time set to {int(value)} min")
+    except Exception as e:
+        print("onMaxOffTimeC1Change error:", e)
+        
+
 def onRefillTank(client, value):
     # Button → Event
     if value:
