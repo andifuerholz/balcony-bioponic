@@ -33,6 +33,7 @@ from cloud.callbacks import (
     onC1DurationChange, onC2DurationChange, onC3DurationChange,
     onStartHourChange, onEndHourChange,
     onRefillTank, onRefillTimeChange,
+    onMaxOffTimeC1Change,
 )
 from tasks.time_task import time_and_temp_task
 from tasks.cycles_control import cycles_control_task
@@ -43,6 +44,8 @@ from state.runtime import (
     get_c1_duration_s, get_c2_duration_s, get_c3_duration_s,
     get_active_window_minutes,
     consume_refill_request, get_refill_time_s,
+    get_c1_max_off_time_min,
+
 )
 
 from tasks.lcd_task import lcd_task
@@ -113,6 +116,7 @@ def main():
         'tankLevel': {},
         'refill_tank': {'on_write': onRefillTank},
         'refill_tank_time': {'on_write': onRefillTimeChange},
+        'max_off_time_circuit_1_min': {'on_write': onMaxOffTimeC1Change},
     })
     
     # --- Sensors manager (SHT20 over I2C) ---
@@ -137,6 +141,7 @@ def main():
             client, 'cycles_circuit_1_effective',
             get_c1_duration_s,
             get_active_window_minutes,
+            get_c1_max_off_time_min,
         )
     )
 
