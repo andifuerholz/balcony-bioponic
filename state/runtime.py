@@ -105,6 +105,24 @@ def set_active_window_minutes(start_m: int, end_m: int):
 def get_active_window_minutes():
     with _win_lock:
         return _start_minutes, _end_minutes
+    
+# --- Circuit 1 max off time (minutes) ------------------------------------------
+
+_c1_max_off_time_min = 120
+_c1_max_off_lock = _thread.allocate_lock()
+
+def set_c1_max_off_time_min(v):
+    global _c1_max_off_time_min
+    try:
+        v = max(0, min(int(v), 1440))  # 0 = disabled
+        with _c1_max_off_lock:
+            _c1_max_off_time_min = v
+    except:
+        pass
+
+def get_c1_max_off_time_min():
+    with _c1_max_off_lock:
+        return int(_c1_max_off_time_min)
 
 
 # --- Refill -------------------------------------------------------------------
