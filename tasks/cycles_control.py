@@ -37,15 +37,22 @@ def cycles_control_task(
     effective_var_name=None,
     get_duration_s_fn=None,
     get_window_minutes_fn=None,
+    get_max_off_time_min_fn=None,
 ):
     """
     Poll current time unit (seconds in DEV, minutes in PROD).
     If within the active window and configured,
     activate the actuator for the configured duration.
+
+    Extended with:
+    - MAX_OFF_TIME watchdog (independent of time window)
     """
     actuator_active_until = 0
     last_fired = -1
     last_effective = None
+
+    # NEW: track last actual activation
+    last_activation_ms = -1
 
     while True:
         try:
@@ -86,13 +93,6 @@ def cycles_control_task(
                 except Exception:
                     in_window = True  # fail-open
 
-            if not in_window:
-                if actuator_active_until:
-                    set_actuator_fn(actuator, False)
-                    actuator_active_until = 0
-                sleep(poll_ms / 1000.0)
-                continue
-
             # --- Resolve duration ---
             duration_ms = 2000  # fallback
             if get_duration_s_fn:
@@ -101,18 +101,45 @@ def cycles_control_task(
                 except Exception:
                     pass
 
-            # --- Trigger ---
-            if (time_unit in active_secs) and (time_unit != last_fired):
+            # --- MAX_OFF_TIME watchdog (independent of window) ---
+            max_off_ms = 0
+            if get_max_off_time_min_fn:
+                try:
+                    v = get_max_off_time_min_fn()
+                    if v > 0:
+                        max_off_ms = int(v) * 60 * 1000
+                except Exception:
+                    pass
+
+            max_off_exceeded = (
+                max_off_ms > 0 and (
+                    last_activation_ms < 0 or
+                    ticks_diff(now_ms, last_activation_ms) >= max_off_ms
+                )
+            )
+
+            # --- Trigger decision ---
+            is_schedule_trigger = (time_unit in active_secs) and (time_unit != last_fired)
+
+            should_fire = (
+                (is_schedule_trigger and in_window)
+                or max_off_exceeded
+            )
+
+            if should_fire:
                 set_actuator_fn(actuator, True)
                 actuator_active_until = now_ms + duration_ms
-                last_fired = time_unit
+
+                # update trackers
+                last_activation_ms = now_ms
+                if is_schedule_trigger:
+                    last_fired = time_unit
 
                 print(
-                    "[cycles] Trigger at",
-                    time_unit,
-                    "→ actuator active for",
-                    duration_ms,
-                    "ms"
+                    "[cycles] Trigger:",
+                    "schedule" if (is_schedule_trigger and in_window) else "max_off",
+                    "| unit:", time_unit,
+                    "| duration:", duration_ms, "ms"
                 )
 
         except Exception as e:
