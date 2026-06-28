@@ -65,6 +65,13 @@ def main():
     relay2 = make_relay(RELAY2_PIN)
     relay3 = make_relay(RELAY3_PIN)
     relay4 = make_relay(RELAY4_PIN)
+    
+
+    # --- definierter Startzustand
+    set_relay(relay1, False)
+    set_relay(relay2, False)
+    set_relay(relay3, False)
+    set_relay(relay4, False)
 
     
     # I2C BUS ERZEUGEN
