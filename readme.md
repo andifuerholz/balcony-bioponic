@@ -30,7 +30,15 @@
 
 ## Project description
 
-Project in development...hang on...
+This project implements a compact **bioponics automation system** for balcony-scale food production using an **Arduino Nano ESP32** running **MicroPython**.
+
+The controller manages watering cycles, aeration, environmental monitoring, tank level measurement, and automatic reservoir refilling. Watering schedules are temperature-dependent and can be configured remotely through **Arduino IoT Cloud**.
+
+The software follows a modular architecture with separate layers for hardware access, cloud communication, shared runtime state, and concurrent background tasks. This enables reliable operation while remaining easy to extend and maintain.
+
+To support unattended operation, the system continuously monitors sensors and actuators, synchronizes with the cloud, performs a daily automatic reboot at **06:00**, and automatically recovers from extended Wi‑Fi outages through a watchdog-based restart mechanism.
+
+Besides providing a productive growing environment for lettuces and fruits, the project also serves as a practical learning platform for embedded systems, MicroPython, IoT integration, automation, and robust real-world control systems.
 
 ## Hardware
 
