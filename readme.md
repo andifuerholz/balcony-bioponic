@@ -60,19 +60,40 @@ The bioponics system is built from a set of components aiming for a balcony-scal
 ## Software
 ### Core Watering Logic
 
-The software controls the watering cycles within a defined daily time window (e.g., from 09:00 to 21:00).  
-Within this active period, the pump of each watering circuit is triggered according to a schedule that specifies **at which minutes of the hour** the pump should run.
+#### Core Watering Logic
 
-The configuration is independent for:
+The software controls the watering cycles within a configurable daily time window (e.g. from 07:00 to 22:00).
 
-- the two watering circuits
-- different ranges of outdoor temperature
+Within this active period, each circuit follows a temperature-dependent schedule that defines **at which minutes of the hour** the actuator is activated. Different temperature ranges can be assigned different trigger schedules, allowing the watering frequency to adapt automatically to environmental conditions.
 
 Example:
 
-If the outdoor temperature is **26 °C**, then at minutes **0, 20, and 40** of each hour, the pump of **circuit 1** is activated for **10 seconds**.
+- Air temperature: **26 °C**
+- Circuit 1 schedule: **0, 20, 40**
+- Pulse duration: **15 seconds**
 
-This logic allows the system to adapt its watering frequency to the current temperature conditions.
+Result:
+
+- Circuit 1 is activated at minute 0, 20, and 40 of every hour and remains active for 15 seconds.
+
+To reduce noise during nighttime operation, the cultivation channel is normally restricted to a configurable active daytime window. This prevents the circulation pump from running too often during warm summer nights. It is assumed, thath water demand remains lower at night, but plants still continue nutrient uptake and are able to growth. Therefore, a safety mechanism ensures that the cultivation channel is not left inactive for excessive periods. So in addition to the scheduled triggers, a circuit can define a **maximum off-time**. If the actuator has not been activated for the configured period, the system performs a forced activation regardless of the current schedule or active time window.
+
+Example:
+
+- Active window: **07:00–22:00**
+- Maximum off-time: **75 minutes**
+- No regular activation occurs within 75 minutes
+
+Result:
+
+- The circuit is automatically activated using the configured pulse duration.
+- The off-time counter is reset after the activation.
+
+This approach combines three objectives:
+
+- temperature-adaptive watering during the day,
+- reduced noise emissions during the night,
+- guaranteed minimum circulation and nutrient supply for the cultivation channel over a 24-hour period.
 
 ### Framework description
 
