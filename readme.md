@@ -40,6 +40,8 @@ To support unattended operation, the system continuously monitors sensors and ac
 
 Besides providing a productive growing environment for lettuces and fruits, the project also serves as a practical learning platform for embedded systems, MicroPython, IoT integration, automation, and robust real-world control systems.
 
+![Arduino Nano ESP32 wiring](https://github.com/andifuerholz/balcony-bioponic/blob/bc93deddbc6b00784411bc56c6c973a75ff1a4b9/img/Arduino%20Nano%20ESP32%20connection.jpg?raw=true)
+
 ![Balcony Bioponic System](https://github.com/andifuermain/img/collage_bioponic.jpg?raw=true
 
 ## Hardware
