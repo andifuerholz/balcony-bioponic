@@ -185,6 +185,57 @@ It is effectively a **lightweight, soft real-time control system** tailored for 
 	📄 ...<br>
 	📄 ...<br>
 
+### Reliability & Recovery Strategy
+
+The system is designed to operate unattended for long periods on a balcony installation where temporary network interruptions may occur.
+
+To improve long-term reliability, two recovery mechanisms are implemented:
+
+#### Daily Scheduled Reboot
+
+The controller performs an automatic reboot every day at **06:00 local time**.
+
+Purpose:
+
+- Refresh network and cloud connections
+- Reinitialize hardware peripherals
+- Re-synchronize the system clock (NTP)
+- Reduce the risk of long-term memory fragmentation or stale internal states
+
+The reboot occurs once per day and only within the configured minute, preventing repeated restarts.
+
+#### Wi‑Fi Loss Watchdog
+
+A background monitoring function continuously checks the Wi‑Fi connection status.
+
+Behaviour:
+
+1. If the Wi‑Fi connection is lost, a timer is started.
+2. Temporary outages are tolerated and reported via log messages.
+3. If the connection is restored, the timer is reset.
+4. If the Wi‑Fi connection remains unavailable for more than **5 minutes**, the controller automatically reboots.
+
+This approach provides a simple and robust recovery mechanism for situations where:
+
+- the access point becomes temporarily unavailable,
+- DHCP renewal fails,
+- cloud connectivity cannot be re-established after a network interruption,
+- internal network components enter an undefined state.
+
+#### Design Philosophy
+
+The project deliberately prioritizes robustness and simplicity over complex reconnection logic.
+
+For a small embedded automation system, a controlled reboot is often the most reliable recovery strategy. After reboot, the standard startup sequence is executed:
+
+1. Connect to Wi‑Fi
+2. Synchronize time via NTP
+3. Initialize hardware
+4. Reconnect to Arduino IoT Cloud
+5. Resume normal operation
+
+This strategy has proven effective during testing with simulated Wi‑Fi outages and ensures that the system can recover automatically without user intervention.
+
 
 ### Arduino Cloud Setup
 #### Cloud Variables
