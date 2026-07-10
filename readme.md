@@ -40,6 +40,9 @@ To support unattended operation, the system continuously monitors sensors and ac
 
 Besides providing a productive growing environment for lettuces and fruits, the project also serves as a practical learning platform for embedded systems, MicroPython, IoT integration, automation, and robust real-world control systems.
 
+![Balcony Bioponic System](https://raw.githubusercontent.com/andifuerholz/balcony-bioponic/ad5c590e5e84a1def2ae844380526ponic.jpg
+
+
 ## Hardware
 
 The bioponics system is built from a set of components aiming for a balcony-scale food production. The hardware includes:
