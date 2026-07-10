@@ -139,7 +139,6 @@ At a high level, the architecture consists of the following layers:
   - Acts as the single source of truth between tasks and cloud callbacks
 
 - **Task Layer (`tasks/`)**
-- **Task Layer (tasks/)**
   - Implements concurrent workers with different execution frequencies and responsibilities:
 
   - **Monitoring Task**
@@ -316,6 +315,7 @@ Core parts of the system were used for two years — with a simple timer — bef
 1. Understanding how to set up and run the basic hardware and software components  
 2. Learning how to design an appropriate control structure (~ threads) for reading sensors and controlling actuators  
 3. Understanding how to integrate real‑world constraints (timing, temperature thresholds, water levels
+4. Add things to have more fun :-)
 
 
 ## Appendix
