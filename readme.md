@@ -40,8 +40,7 @@ To support unattended operation, the system continuously monitors sensors and ac
 
 Besides providing a productive growing environment for lettuces and fruits, the project also serves as a practical learning platform for embedded systems, MicroPython, IoT integration, automation, and robust real-world control systems.
 
-[![Bioponic System](https://github.com/andifuerholz/balcony-bioponic/blob/ad5c590e5e84a1def2ae8443805260c0479cb0ccic.jpg?raw=true
-](https://github.com/andifuerholz/balcony-bioponic/blob/main/img/collage_bioponic.jpg?raw=true)
+![Balcony Bioponic System](https://github.com/ic/blob/main/img/collage_bioponic.jpg?raw=true
 
 
 ## Hardware
