@@ -139,11 +139,32 @@ At a high level, the architecture consists of the following layers:
   - Acts as the single source of truth between tasks and cloud callbacks
 
 - **Task Layer (`tasks/`)**
-  - Implements concurrent workers with different execution frequencies:
-    - **Low-frequency task**: updates time, reads sensors, publishes values
-    - **High-frequency task**: evaluates watering schedules and triggers relays
-    - **UI task**: manages LCD output
-  - Uses polling combined with non-blocking timing (`ticks_ms`) to achieve soft real-time behavior
+- **Task Layer (tasks/)**
+  - Implements concurrent workers with different execution frequencies and responsibilities:
+
+  - **Monitoring Task**
+    - Updates local time information
+    - Reads environmental sensors
+    - Publishes measured values to Arduino IoT Cloud
+    - Monitors Wi‑Fi connectivity
+    - Performs automatic recovery actions if communication is unavailable for an extended period
+
+  - **Cycle Control Task**
+    - Evaluates temperature-dependent watering schedules
+    - Checks the configured daily operating window
+    - Controls pumps and actuators using configurable pulse durations
+    - Enforces a maximum off-time watchdog to guarantee periodic circulation and nutrient supply
+
+  - **Refill Task**
+    - Executes refill requests for the main nutrient tank
+    - Controls the refill pump independently from the watering logic
+
+  - **UI Task**
+    - Manages LCD output
+    - Displays system status and sensor information
+
+  - Uses polling combined with non-blocking timing (`ticks_ms`) to achieve soft real-time behaviour
+``
 
 - **Hardware Abstraction Layer (`hw/`)**
   - Encapsulates direct hardware interaction:
