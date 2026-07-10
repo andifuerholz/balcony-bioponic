@@ -53,7 +53,7 @@ The bioponics system is built from a set of components aiming for a balcony-scal
 - **One Arduino Nano ESP32 S3**, serving as the central microcontroller for automation and pump control.
 - **Additional electronic components**, including relays, voltage converters, a power supply, and supporting circuitry.
 - **SH20 temperature/humidity sensor (I2C)** to measure ambient temperature and humidity.
-- Planned: **SH20 temperature sensor (I2C)** to monitor the nutrient solution temperature.
+- **Planned: SH20 temperature sensor (I2C)** to monitor the nutrient solution temperature.
 - **A custom-built water level sensing system**, consisting of six reed switches positioned at different heights.
 - **An auxiliary tank with its own pump** to refill or stabilize the main reservoir when required.
 
